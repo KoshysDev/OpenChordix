@@ -7,7 +7,6 @@ CMakeFiles/
 cmake_install.cmake
 compile_commands.json # Often generated in build dir, useful locally but not usually committed
 
-# Build directory (recommended practice)
 build/
 /build/
 
