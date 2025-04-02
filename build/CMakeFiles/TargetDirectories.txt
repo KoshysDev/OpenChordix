@@ -1,0 +1,3 @@
+/home/koshys/OpenChordix/build/CMakeFiles/OpenChordix.dir
+/home/koshys/OpenChordix/build/CMakeFiles/edit_cache.dir
+/home/koshys/OpenChordix/build/CMakeFiles/rebuild_cache.dir
