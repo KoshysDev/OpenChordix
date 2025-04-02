@@ -1,0 +1,109 @@
+#========================================
+# Build files
+#========================================
+# CMake generated files/directories
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json # Often generated in build dir, useful locally but not usually committed
+
+# Build directory (recommended practice)
+build/
+/build/
+
+# Out-of-source build directories (if you use different names)
+/[Bb]uild*/
+/[Oo]ut*/
+/[Bb]in/
+
+# Compiled object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled static libraries
+*.a
+*.lib
+
+# Compiled shared libraries/dylibs/DLLs
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+*.ipa
+
+#========================================
+# IDE / Editor Files
+#========================================
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# CLion
+.idea/
+
+# Qt Creator
+*.creator.user
+*.creator.db
+
+# Vim
+*.swp
+*~
+*.swo
+
+# Emacs
+*~
+#*#
+
+#========================================
+# OS Files
+#========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+#========================================
+# Other
+#========================================
+# Crash Dumps
+*.stackdump
+*.dmp
+
+# Test results / Coverage data (if generated outside build dir)
+*.gcda
+*.gcno
+*.gcov
+/coverage/
+
+# Dependency Management (adjust if using vcpkg/conan locally)
+# /vcpkg/
+# /conan/
+
+# Log files
+*.log
+
+# Doxygen output (if generated in source tree)
+/docs/html/
+/docs/latex/
+
+# Your specific executable name (optional, usually covered by build dir ignore)
+# openchordix
