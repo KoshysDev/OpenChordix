@@ -63,11 +63,11 @@ CMAKE_BINARY_DIR = /home/koshys/OpenChordix/build
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/OpenChordix.dir/all
+all: CMakeFiles/openchordix.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
-codegen: CMakeFiles/OpenChordix.dir/codegen
+codegen: CMakeFiles/openchordix.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -75,40 +75,40 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/OpenChordix.dir/clean
+clean: CMakeFiles/openchordix.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/OpenChordix.dir
+# Target rules for target CMakeFiles/openchordix.dir
 
 # All Build rule for target.
-CMakeFiles/OpenChordix.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/koshys/OpenChordix/build/CMakeFiles --progress-num=1,2 "Built target OpenChordix"
-.PHONY : CMakeFiles/OpenChordix.dir/all
+CMakeFiles/openchordix.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/koshys/OpenChordix/build/CMakeFiles --progress-num=1,2 "Built target openchordix"
+.PHONY : CMakeFiles/openchordix.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/OpenChordix.dir/rule: cmake_check_build_system
+CMakeFiles/openchordix.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/koshys/OpenChordix/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/OpenChordix.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/openchordix.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/koshys/OpenChordix/build/CMakeFiles 0
-.PHONY : CMakeFiles/OpenChordix.dir/rule
+.PHONY : CMakeFiles/openchordix.dir/rule
 
 # Convenience name for target.
-OpenChordix: CMakeFiles/OpenChordix.dir/rule
-.PHONY : OpenChordix
+openchordix: CMakeFiles/openchordix.dir/rule
+.PHONY : openchordix
 
 # codegen rule for target.
-CMakeFiles/OpenChordix.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/koshys/OpenChordix/build/CMakeFiles --progress-num=1,2 "Finished codegen for target OpenChordix"
-.PHONY : CMakeFiles/OpenChordix.dir/codegen
+CMakeFiles/openchordix.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/koshys/OpenChordix/build/CMakeFiles --progress-num=1,2 "Finished codegen for target openchordix"
+.PHONY : CMakeFiles/openchordix.dir/codegen
 
 # clean rule for target.
-CMakeFiles/OpenChordix.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/clean
-.PHONY : CMakeFiles/OpenChordix.dir/clean
+CMakeFiles/openchordix.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/clean
+.PHONY : CMakeFiles/openchordix.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

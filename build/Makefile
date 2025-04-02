@@ -117,24 +117,24 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named OpenChordix
+# Target rules for targets named openchordix
 
 # Build rule for target.
-OpenChordix: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 OpenChordix
-.PHONY : OpenChordix
+openchordix: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 openchordix
+.PHONY : openchordix
 
 # fast build rule for target.
-OpenChordix/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/build
-.PHONY : OpenChordix/fast
+openchordix/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/build
+.PHONY : openchordix/fast
 
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
 # target to build an object file
 src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/src/main.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/src/main.cpp.o
 .PHONY : src/main.cpp.o
 
 src/main.i: src/main.cpp.i
@@ -142,7 +142,7 @@ src/main.i: src/main.cpp.i
 
 # target to preprocess a source file
 src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/src/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/src/main.cpp.i
 .PHONY : src/main.cpp.i
 
 src/main.s: src/main.cpp.s
@@ -150,7 +150,7 @@ src/main.s: src/main.cpp.s
 
 # target to generate assembly for a file
 src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/OpenChordix.dir/build.make CMakeFiles/OpenChordix.dir/src/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/openchordix.dir/build.make CMakeFiles/openchordix.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
 # Help Target
@@ -161,7 +161,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... OpenChordix"
+	@echo "... openchordix"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

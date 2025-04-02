@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/openchordix.dir/link.d CMakeFiles/openchordix.dir/src/main.cpp.o -o openchordix  -lrtaudio

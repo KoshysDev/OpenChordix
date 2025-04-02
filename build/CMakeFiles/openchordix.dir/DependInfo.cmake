@@ -8,8 +8,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/koshys/OpenChordix/src/main.cpp" "CMakeFiles/OpenChordix.dir/src/main.cpp.o" "gcc" "CMakeFiles/OpenChordix.dir/src/main.cpp.o.d"
-  "" "OpenChordix" "gcc" "CMakeFiles/OpenChordix.dir/link.d"
+  "/home/koshys/OpenChordix/src/main.cpp" "CMakeFiles/openchordix.dir/src/main.cpp.o" "gcc" "CMakeFiles/openchordix.dir/src/main.cpp.o.d"
+  "" "openchordix" "gcc" "CMakeFiles/openchordix.dir/link.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

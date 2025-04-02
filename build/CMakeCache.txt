@@ -53,32 +53,6 @@ CMAKE_CXX_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
 //Flags used by the CXX compiler during RELWITHDEBINFO builds.
 CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
 
-//C compiler
-CMAKE_C_COMPILER:FILEPATH=/usr/bin/cc
-
-//A wrapper around 'ar' adding the appropriate '--plugin' option
-// for the GCC compiler
-CMAKE_C_COMPILER_AR:FILEPATH=/usr/bin/gcc-ar
-
-//A wrapper around 'ranlib' adding the appropriate '--plugin' option
-// for the GCC compiler
-CMAKE_C_COMPILER_RANLIB:FILEPATH=/usr/bin/gcc-ranlib
-
-//Flags used by the C compiler during all build types.
-CMAKE_C_FLAGS:STRING=
-
-//Flags used by the C compiler during DEBUG builds.
-CMAKE_C_FLAGS_DEBUG:STRING=-g
-
-//Flags used by the C compiler during MINSIZEREL builds.
-CMAKE_C_FLAGS_MINSIZEREL:STRING=-Os -DNDEBUG
-
-//Flags used by the C compiler during RELEASE builds.
-CMAKE_C_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
-
-//Flags used by the C compiler during RELWITHDEBINFO builds.
-CMAKE_C_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
-
 //Path to a program.
 CMAKE_DLLTOOL:FILEPATH=CMAKE_DLLTOOL-NOTFOUND
 
@@ -148,7 +122,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=OpenChordix
+CMAKE_PROJECT_NAME:STATIC=openchordix
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION:STATIC=0.1
@@ -230,23 +204,23 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
-//Value Computed by CMake
-OpenChordix_BINARY_DIR:STATIC=/home/koshys/OpenChordix/build
+//Arguments to supply to pkg-config
+PKG_CONFIG_ARGN:STRING=
+
+//pkg-config executable
+PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
 
 //Value Computed by CMake
-OpenChordix_IS_TOP_LEVEL:STATIC=ON
+openchordix_BINARY_DIR:STATIC=/home/koshys/OpenChordix/build
 
 //Value Computed by CMake
-OpenChordix_SOURCE_DIR:STATIC=/home/koshys/OpenChordix
+openchordix_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
-OpenHero_BINARY_DIR:STATIC=/home/koshys/OpenChordix/build
+openchordix_SOURCE_DIR:STATIC=/home/koshys/OpenChordix
 
-//Value Computed by CMake
-OpenHero_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-OpenHero_SOURCE_DIR:STATIC=/home/koshys/OpenChordix
+//Path to a library.
+pkgcfg_lib_RTAUDIO_rtaudio:FILEPATH=/usr/lib/librtaudio.so
 
 
 ########################
@@ -289,22 +263,6 @@ CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=1
 CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_CXX_FLAGS_RELWITHDEBINFO
 CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_COMPILER
-CMAKE_C_COMPILER-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_COMPILER_AR
-CMAKE_C_COMPILER_AR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_COMPILER_RANLIB
-CMAKE_C_COMPILER_RANLIB-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_FLAGS
-CMAKE_C_FLAGS-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_FLAGS_DEBUG
-CMAKE_C_FLAGS_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_FLAGS_MINSIZEREL
-CMAKE_C_FLAGS_MINSIZEREL-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_FLAGS_RELEASE
-CMAKE_C_FLAGS_RELEASE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: CMAKE_C_FLAGS_RELWITHDEBINFO
-CMAKE_C_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_DLLTOOL
 CMAKE_DLLTOOL-ADVANCED:INTERNAL=1
 //Path to cache edit program executable.
@@ -333,6 +291,8 @@ CMAKE_GENERATOR_INSTANCE:INTERNAL=
 CMAKE_GENERATOR_PLATFORM:INTERNAL=
 //Name of generator toolset.
 CMAKE_GENERATOR_TOOLSET:INTERNAL=
+//Test CMAKE_HAVE_LIBC_PTHREAD
+CMAKE_HAVE_LIBC_PTHREAD:INTERNAL=1
 //Source directory with the top level CMakeLists.txt file for this
 // project
 CMAKE_HOME_DIRECTORY:INTERNAL=/home/koshys/OpenChordix
@@ -402,4 +362,52 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding PkgConfig
+FIND_PACKAGE_MESSAGE_DETAILS_PkgConfig:INTERNAL=[/usr/bin/pkg-config][v2.4.3()]
+//Details about finding Threads
+FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
+//ADVANCED property for variable: PKG_CONFIG_ARGN
+PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
+PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
+RTAUDIO_CFLAGS:INTERNAL=-I/usr/include/rtaudio;-I/usr/include;-D_REENTRANT
+RTAUDIO_CFLAGS_I:INTERNAL=
+RTAUDIO_CFLAGS_OTHER:INTERNAL=-D_REENTRANT
+RTAUDIO_FOUND:INTERNAL=1
+RTAUDIO_INCLUDEDIR:INTERNAL=/usr/include
+RTAUDIO_INCLUDE_DIRS:INTERNAL=/usr/include/rtaudio;/usr/include
+RTAUDIO_LDFLAGS:INTERNAL=-L/usr/lib;-lrtaudio
+RTAUDIO_LDFLAGS_OTHER:INTERNAL=
+RTAUDIO_LIBDIR:INTERNAL=/usr/lib
+RTAUDIO_LIBRARIES:INTERNAL=rtaudio
+RTAUDIO_LIBRARY_DIRS:INTERNAL=/usr/lib
+RTAUDIO_LIBS:INTERNAL=
+RTAUDIO_LIBS_L:INTERNAL=
+RTAUDIO_LIBS_OTHER:INTERNAL=
+RTAUDIO_LIBS_PATHS:INTERNAL=
+RTAUDIO_MODULE_NAME:INTERNAL=rtaudio
+RTAUDIO_PREFIX:INTERNAL=/usr
+RTAUDIO_STATIC_CFLAGS:INTERNAL=-I/usr/include/rtaudio;-I/usr/include;-D_REENTRANT
+RTAUDIO_STATIC_CFLAGS_I:INTERNAL=
+RTAUDIO_STATIC_CFLAGS_OTHER:INTERNAL=-D_REENTRANT
+RTAUDIO_STATIC_INCLUDE_DIRS:INTERNAL=/usr/include/rtaudio;/usr/include
+RTAUDIO_STATIC_LDFLAGS:INTERNAL=-L/usr/lib;-lrtaudio;-lasound;-lm;-lpthread;-lrt;-ljack;-lpulse-simple;-L/usr/lib/pulseaudio;-lpulsecommon-17.0;-lpulse;-pthread;-L/usr/lib/pulseaudio;-lpulsecommon-17.0
+RTAUDIO_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread
+RTAUDIO_STATIC_LIBDIR:INTERNAL=
+RTAUDIO_STATIC_LIBRARIES:INTERNAL=rtaudio;asound;m;pthread;rt;jack;pulse-simple;pulsecommon-17.0;pulse;pulsecommon-17.0
+RTAUDIO_STATIC_LIBRARY_DIRS:INTERNAL=/usr/lib;/usr/lib/pulseaudio;/usr/lib/pulseaudio
+RTAUDIO_STATIC_LIBS:INTERNAL=
+RTAUDIO_STATIC_LIBS_L:INTERNAL=
+RTAUDIO_STATIC_LIBS_OTHER:INTERNAL=
+RTAUDIO_STATIC_LIBS_PATHS:INTERNAL=
+RTAUDIO_VERSION:INTERNAL=6.0.1
+RTAUDIO_rtaudio_INCLUDEDIR:INTERNAL=
+RTAUDIO_rtaudio_LIBDIR:INTERNAL=
+RTAUDIO_rtaudio_PREFIX:INTERNAL=
+RTAUDIO_rtaudio_VERSION:INTERNAL=
+__pkg_config_arguments_RTAUDIO:INTERNAL=REQUIRED;rtaudio
+__pkg_config_checked_RTAUDIO:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_RTAUDIO_rtaudio
+pkgcfg_lib_RTAUDIO_rtaudio-ADVANCED:INTERNAL=1
+prefix_result:INTERNAL=/usr/lib
 

@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/OpenChordix.dir/link.d CMakeFiles/OpenChordix.dir/src/main.cpp.o -o OpenChordix
