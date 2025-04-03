@@ -7,21 +7,24 @@
 #include <map>
 #include <csignal>
 #include <atomic>
+#include <chrono>
+#include <thread>
 
 #include "AudioManager.h"
 
 // Global flags to signal shutdown from Ctrl+C handler
 std::atomic<bool> g_quit_flag(false);
-std::atomic<bool> audio_stream_running_flag(false);
 
 void signalHandler(int signal) {
     (void)signal;
-    if (signal == SIGINT && audio_stream_running_flag.load()) {
+    if (signal == SIGINT) {
+        if (g_quit_flag.load()){
+            // Detect second Ctrl+C, force exit
+            std::cerr << "\nForcing exit!" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
         std::cout << "\nCtrl+C detected, signaling shutdown..." << std::endl;
-        g_quit_flag.store(true);
-    }else{
-        std::cout << "\nProgram finished." << std::endl;
-        exit(0);
+        g_quit_flag.store(true); // Signal main loop to stop
     }
 }
 
@@ -113,30 +116,38 @@ int main() {
         // 4. Open and Start the Monitoring Stream
         // Use desired sample rate and buffer size (make configurable later)
         unsigned int sampleRate = 48000; // Default rate for interfaces
-        unsigned int bufferFrames = 512; // framebuffer
+        unsigned int bufferFrames = 1024; // framebuffer
+
+        if (manager.getCurrentApi() == RtAudio::Api::UNIX_JACK) {
+            // For JACK, always request the system default buffer size.
+            std::cout << "JACK API in use. Requesting system default buffer size (0)." << std::endl;
+            bufferFrames = 1024; // Let system decide
+        } else {
+            // For ALSA, Pulse, or others, use a specific size that works.
+            std::cout << "Non-JACK API in use. Requesting buffer size: " << bufferFrames << std::endl;
+        }
 
         std::cout << "\nAttempting to open monitoring stream..." << std::endl;
         if (manager.openMonitoringStream(inputDeviceId, sampleRate, bufferFrames)) {
             std::cout << "Stream opened. Attempting to start..." << std::endl;
             if (manager.startStream()) {
-                audio_stream_running_flag.store(true);
                 std::cout << "\n--- Monitoring Started ---" << std::endl;
                 std::cout << "Playing audio from input device ID " << inputDeviceId << std::endl;
                 std::cout << "Press Ctrl+C to stop monitoring." << std::endl;
 
                 // Keep running while the stream is active and no quit signal
-                while (manager.isStreamRunning() && !g_quit_flag.load()) {
-                    // Sleep briefly to avoid busy-waiting
-                    #ifdef _WIN32
-                        Sleep(100); // Windows sleep (milliseconds)
-                    #else
-                        usleep(100000); // POSIX sleep (microseconds) -> 100ms
-                    #endif
+                while (!g_quit_flag.load()) {
+                    if(!manager.isStreamRunning()){
+                        std::cerr << "Warning: Stream stopped unexpectedly!" << std::endl;
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
 
                 std::cout << "\n--- Stopping Monitoring ---" << std::endl;
-                manager.stopStream();
-
+                if (!manager.stopStream()) {
+                    std::cerr << "Failed to stop stream cleanly." << std::endl;
+                }
             } else {
                 std::cerr << "Failed to start the audio stream." << std::endl;
             }

@@ -9,7 +9,8 @@
 
 // Define a structure to pass essential info to the static callback
 struct AudioCallbackData {
-    unsigned int channels = 0;
+    unsigned int inputChannels = 0;
+    unsigned int outputChannels = 0;
 };
 
 
@@ -53,7 +54,8 @@ private:
     RtAudio::Api actualApi_;
     bool streamIsOpen_ = false;
     bool streamIsRunning_ = false;
-    unsigned int streamChannels_ = 0; // Store actual channels used
+    unsigned int streamInputChannels_ = 0;
+    unsigned int streamOutputChannels_ = 0;
     unsigned int streamSampleRate_ = 0; // Store actual sample rate
     unsigned int streamBufferFrames_ = 0; // Store actual buffer frames
 

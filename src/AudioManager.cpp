@@ -2,6 +2,8 @@
 #include <iostream>       
 #include <stdexcept>
 #include <cstring>
+#include <algorithm>
+#include <cmath>
 
 // --- Static Error Callback Implementation ---
 void AudioManager::defaultErrorCallback( RtAudioErrorType type, const std::string &errorText )
@@ -152,14 +154,13 @@ int AudioManager::monitoringCallback( void *outputBuffer, void *inputBuffer, uns
 {
     (void)streamTime; // Prevent unused parameter warning
 
-    // Retrieve context data (like channel count)
     AudioCallbackData* cbData = static_cast<AudioCallbackData*>(userData);
     if (!cbData) {
-         // This shouldn't happen if openStream sets userData correctly
          std::cerr << "Error: Callback user data is null!" << std::endl;
          return 2; // Abort stream
     }
-    unsigned int channels = cbData->channels;
+    unsigned int inputChannels = cbData->inputChannels;
+    unsigned int outputChannels = cbData->outputChannels;
 
     if ( status & RTAUDIO_INPUT_OVERFLOW ) {
         std::cerr << "Stream Warning: Input overflow detected!" << std::endl;
@@ -168,20 +169,65 @@ int AudioManager::monitoringCallback( void *outputBuffer, void *inputBuffer, uns
         std::cerr << "Stream Warning: Output underflow detected!" << std::endl;
     }
 
-    // Simple Monitoring: Copy input buffer directly to output buffer
-    if (inputBuffer != nullptr && outputBuffer != nullptr) {
-        // Assuming RTAUDIO_FLOAT32 format for now
-        // Size = number of frames * number of channels * size of one sample
-        memcpy(outputBuffer, inputBuffer, nFrames * channels * sizeof(float));
-    } else {
-        // If input-only or output-only, one might be null. For duplex, both should be valid.
+    // --- Buffer Validity Check ---
+    // Check if we have the necessary buffers for monitoring
+    if (inputBuffer == nullptr || outputBuffer == nullptr) {
+        // Log warnings if one is unexpectedly null in a duplex stream scenario
          if (inputBuffer == nullptr) std::cerr << "Warning: inputBuffer is null in callback." << std::endl;
          if (outputBuffer == nullptr) std::cerr << "Warning: outputBuffer is null in callback." << std::endl;
-         // Optionally zero out output buffer if input is null?
-         // if (outputBuffer != nullptr) memset(outputBuffer, 0, nFrames * channels * sizeof(float));
+        // Can't perform monitoring copy, return. Output buffer remains unchanged (likely silent).
+         return 0; // Continue stream, but do no processing this cycle.
     }
 
-    return 0; // Continue streaming
+    // --- Buffers are valid, proceed with channel mapping ---
+
+    // Cast buffers (assuming RTAUDIO_FLOAT32)
+    float* in = static_cast<float*>(inputBuffer);
+    float* out = static_cast<float*>(outputBuffer);
+
+    // --- Channel Mapping Logic --- (Keep this the same as your previous version)
+    if (inputChannels == 1 && outputChannels == 2){
+        // Mono In -> Stereo Out
+        for (unsigned int i = 0; i < nFrames; ++i){
+            out[i * 2 + 0] = in[i]; // Left channel = mono input
+            out[i * 2 + 1] = in[i]; // Right channel = mono input
+        }
+    } else if (inputChannels == outputChannels){
+        // Matched Channels (Mono->Mono or Stereo->Stereo)
+        // Direct copy
+        memcpy(outputBuffer, inputBuffer, nFrames * inputChannels * sizeof(float));
+    } else if (inputChannels == 2 && outputChannels == 1){
+        // Stereo In -> Mono Out (Mixdown)
+        // std::cerr << "Warning: Stereo input to mono output mixdown." << std::endl; // Optional warning
+        for (unsigned int i = 0; i < nFrames; ++i){
+            out[i] = (in[i * 2 + 0] + in[i * 2 + 1]) * 0.5f; // Average Left and Right
+        }
+    } else {
+        // Other Mismatched / Unsupported Cases
+        std::cerr << "Warning: Unsupported channel configuration in callback (In="
+                  << inputChannels << ", Out=" << outputChannels << "). Outputting silence." << std::endl;
+        // Zero out the output buffer
+        memset(outputBuffer, 0, nFrames * outputChannels * sizeof(float));
+    }
+
+    // --- Optional Debug: Print RMS of input buffer occasionally ---
+    static int frameCounter = 0;
+    static constexpr int printInterval = 100; // Print every 100 callbacks
+    if (++frameCounter >= printInterval) {
+        double sumSquare = 0.0;
+        for (unsigned int i = 0; i < nFrames * inputChannels; ++i) {
+             sumSquare += in[i] * in[i];
+        }
+        double rms = (nFrames * inputChannels > 0) ? sqrt(sumSquare / (nFrames * inputChannels)) : 0.0;
+        // Use printf for carriage return \r to update line in place
+        printf("Input RMS: %.6f \r", rms);
+        fflush(stdout); // Ensure it prints immediately
+        frameCounter = 0;
+    }
+    // --- End Optional Debug ---
+
+
+    return 0; // Signal to continue streaming
 }
 
 
@@ -223,41 +269,41 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
         return false;
     }
 
-    // Determine number of channels (use stereo if available on both, else mono)
-    streamChannels_ = std::min(inputInfo.inputChannels, outputInfo.outputChannels);
-    if (streamChannels_ > 2) streamChannels_ = 2; // Limit to stereo for simplicity for now
-    if (streamChannels_ == 0) { // Should be caught above, but double-check
-         defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Cannot establish common channel count between input and output devices.");
-         return false;
-    }
-    std::cout << "Using " << streamChannels_ << " channel(s) for monitoring." << std::endl;
+    // Determine number of channels
 
+    // Set output, prefere stereo if available
+    streamOutputChannels_ = (outputInfo.outputChannels >= 2) ? 2 : 1;
+    std::cout << "Requesting " << streamOutputChannels_ << " output channel(s)." << std::endl;
+
+    // Set input
+    streamInputChannels_ = 1;
+    std::cout << "Requesting " << streamInputChannels_ << " input channel(s). (monitoring first channel)" << std::endl;
+
+    // Update callback data
+    callbackData_.inputChannels = streamInputChannels_;
+    callbackData_.outputChannels = streamOutputChannels_;
 
     RtAudio::StreamParameters iParams;
     iParams.deviceId = inputDeviceId;
-    iParams.nChannels = streamChannels_;
+    iParams.nChannels = streamInputChannels_;
     iParams.firstChannel = 0;
 
     RtAudio::StreamParameters oParams;
     oParams.deviceId = outputDeviceId;
-    oParams.nChannels = streamChannels_;
+    oParams.nChannels = streamOutputChannels_;
     oParams.firstChannel = 0;
-
-    // Store parameters needed by callback
-    callbackData_.channels = streamChannels_;
 
     streamSampleRate_ = sampleRate;
     streamBufferFrames_ = bufferFrames; // Store requested buffer size
 
-    RtAudio::StreamOptions options;
-    // options.flags |= RTAUDIO_MINIMIZE_LATENCY; // Optional: try to reduce latency
-
-    std::cout << "Attempting to open stream: SR=" << streamSampleRate_ << " Buf=" << streamBufferFrames_ << std::endl;
+    // --- Open Stream Settings ---
+    std::cout << "Attempting to open stream: SR=" << streamSampleRate_ << " Buf=" << streamBufferFrames_ 
+              << " Input Ch=" << streamInputChannels_ << " Output Ch=" << streamOutputChannels_ << std::endl;
     RtAudioErrorType result = RTAUDIO_NO_ERROR;
     try {
         // Pass address of our callback data struct as userData
         result = audio_->openStream(&oParams, &iParams, RTAUDIO_FLOAT32, streamSampleRate_,
-                                   &streamBufferFrames_, &AudioManager::monitoringCallback, &callbackData_, &options);
+                                   &streamBufferFrames_, &AudioManager::monitoringCallback, &callbackData_, nullptr);
     } catch (const std::exception& e) {
         // Catch potential exceptions from within RtAudio openStream (less common)
          defaultErrorCallback(RTAUDIO_SYSTEM_ERROR, "Exception during openStream: " + std::string(e.what()));
@@ -265,13 +311,13 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
          return false;
     }
 
-
     if (result != RTAUDIO_NO_ERROR) {
         // Error callback should have been triggered by RtAudio internals
         std::cerr << "RtAudio openStream failed with code: " << result << std::endl;
         streamIsOpen_ = false;
     } else {
-        std::cout << "Stream opened successfully with buffer size: " << streamBufferFrames_ << std::endl;
+        std::cout << "Stream opened successfully. RtAudio reports actual buffer size: "
+              << streamBufferFrames_ << std::endl;
         streamIsOpen_ = true;
     }
 
