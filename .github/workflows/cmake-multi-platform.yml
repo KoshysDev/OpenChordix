@@ -21,11 +21,11 @@ jobs:
 
           # Arch Linux configuration (using Docker container on Ubuntu runner)
           - os: ubuntu-latest
-            container: archlinux:latest 
+            container: archlinux:latest
             compiler: gcc
             cpp_compiler: g++
             os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf
-            vcpkg_triplet: '' # Not using vcpkg for Arch build
+            vcpkg_triplet: ''
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -35,41 +35,38 @@ jobs:
         shell: bash
 
     env:
-      # Set VCPKG_ROOT environment variable for easier path management
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    - name: Setup Vcpkg (Windows only)
-      if: runner.os == 'Windows'
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgDirectory: ${{ env.VCPKG_ROOT }}
 
-    - name: Install RtAudio using vcpkg (Windows only)
+    # Combine vcpkg setup and install for Windows
+    - name: Setup vcpkg and Install RtAudio (Windows only)
       if: runner.os == 'Windows'
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgDirectory: ${{ env.VCPKG_ROOT }}
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
-        vcpkgCleanAfterBuild: true
+        vcpkgArguments: 'rtaudio' # Install rtaudio package
+        # cleanAfterInstall: true # Optional cleanup
 
     - name: Install Dependencies (Linux Container only)
       if: matrix.os_dependencies != '' && matrix.container != ''
       run: ${{ matrix.os_dependencies }}
-    # ========================================================
-
 
     - name: Configure CMake
       run: |
+        # Optional: Check CMake version
+        cmake --version
+
         CMAKE_ARGS=(
-          "-B build"                            
-          "-S ."                                
-          "-DCMAKE_BUILD_TYPE=Release"          
+          "-B build"
+          "-S ."
+          "-DCMAKE_BUILD_TYPE=Release"
         )
 
-        # Add compiler definitions if specified in matrix
+        # Add compiler definitions if specified in matrix (Not needed for MSVC 'cl')
         if [[ -n "${{ matrix.cpp_compiler }}" && "${{ matrix.cpp_compiler }}" != "cl" ]]; then
           CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}")
         fi
@@ -83,7 +80,6 @@ jobs:
           CMAKE_ARGS+=("-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}")
         fi
 
-        # Execute CMake configure command
         echo "Running CMake with args: ${CMAKE_ARGS[@]}"
         cmake "${CMAKE_ARGS[@]}"
 
