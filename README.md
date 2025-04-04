@@ -34,7 +34,7 @@ The project aims to implement the following major features incrementally:
 *   **Real-time Audio:** RtAudio
 *   **Planned Graphics/Windowing:** BGFX
 *   **Planned UI:** Dear ImGui
-*   **Planned Pitch Detection:** TBD (Exploring options like Aubio, FFTW, KissFFT)
+*   **Planned Pitch Detection:** Aubio
 
 ## Platform Support 💻
 
