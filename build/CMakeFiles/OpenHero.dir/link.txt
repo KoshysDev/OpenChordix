@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/OpenHero.dir/link.d CMakeFiles/OpenHero.dir/src/main.cpp.o -o OpenHero

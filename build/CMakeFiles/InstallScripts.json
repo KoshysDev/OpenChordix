@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/koshys/OpenChordix/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
