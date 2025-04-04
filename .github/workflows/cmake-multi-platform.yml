@@ -52,8 +52,17 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgDirectory: ${{ env.VCPKG_ROOT }}
+        doNotUpdateVcpkg: true
+
+    - name: Install RtAudio using vcpkg (Windows only)
+      if: runner.os == 'Windows'
+      uses: lukka/run-vcpkg@v11
+       # This step implies runVcpkgInstall: true by default when vcpkgArguments are given
+      with:
+        vcpkgDirectory: ${{ env.VCPKG_ROOT }}
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
         vcpkgArguments: 'rtaudio'
+        vcpkgCleanAfterBuild: true
 
     - name: Install Dependencies (Linux Container only)
       if: matrix.os_dependencies != '' && matrix.container != ''
