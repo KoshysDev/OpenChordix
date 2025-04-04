@@ -11,63 +11,55 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
         include:
           # Ubuntu configurations
           - os: ubuntu-latest
             compiler: gcc
             cpp_compiler: g++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev # Add ALSA dev headers
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev
           - os: ubuntu-latest
             compiler: clang
             cpp_compiler: clang++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev # Add ALSA dev headers
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev
 
-          # Windows configuration (using MSVC)
+          # Windows configuration (Placeholder - needs CMakeLists update / vcpkg)
           - os: windows-latest
-            compiler: cl # This is just indicative for MSVC, CMake handles it
+            compiler: cl
             cpp_compiler: cl
+            os_dependencies: '' # Needs vcpkg or similar
 
           # Arch Linux configuration (using Docker container on Ubuntu runner)
-          - os: ubuntu-latest # Base runner OS
+          - os: ubuntu-latest
             container: archlinux:latest
             compiler: gcc
             cpp_compiler: g++
-            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf # Add rtaudio, alsa-lib, pkgconf
+            # Dependencies inside the container
+            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
+
+    # Set Default Shell to bash for all steps
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Install Dependencies
-      if: matrix.os_dependencies != '' 
+      if: matrix.os_dependencies != ''
       run: ${{ matrix.os_dependencies }}
-      shell: bash
-
-    - name: Set reusable strings
-      id: strings
-      shell: bash
-      run: |
-        if [ -n "${{ matrix.container }}" ]; then
-          echo "build-output-dir=/github/workspace/build" >> "$GITHUB_OUTPUT"
-          echo "source-dir=/github/workspace" >> "$GITHUB_OUTPUT"
-        else
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-          echo "source-dir=${{ github.workspace }}" >> "$GITHUB_OUTPUT"
-        fi
 
     - name: Configure CMake
-      # Run CMake from the source directory checkout
-      working-directory: ${{ steps.strings.outputs.source-dir }}
       run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        cmake -B build # Build directory relative to current working dir
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.compiler }}
-        -DCMAKE_BUILD_TYPE=Release # Use fixed Release type for now
-        -S . # Use relative path for source directory
+        -DCMAKE_BUILD_TYPE=Release
+        -S . # Source directory is the current working dir
 
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release # Use fixed Release type
+      # Build from the specified build directory relative to workspace
+      run: cmake --build build --config Release
