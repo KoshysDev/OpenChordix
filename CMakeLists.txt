@@ -1,46 +1,66 @@
-cmake_minimum_required(VERSION 3.10)
-
-project(openchordix VERSION 0.1 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.15) # Bump version for better find_package/vcpkg handling
+project(OpenChordix VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# --- Find PThreads (Required by RtAudio on Linux/macOS) ---
-find_package(Threads REQUIRED)
+# --- Find Dependencies ---
+find_package(rtaudio REQUIRED)
 
-# --- Find RtAudio using pkg-config (Reliable on Linux) ---
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(RTAUDIO REQUIRED rtaudio) # Checks for rtaudio.pc
+if(UNIX AND NOT CMAKE_TOOLCHAIN_FILE)
+  find_package(PkgConfig QUIET)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(RTAUDIO_PC rtaudio)
+    pkg_check_modules(ALSA_PC alsa)       
+  endif()
 
-if(NOT RTAUDIO_FOUND)
-    # This shouldn't happen if yay -S rtaudio worked, but check just in case
-    message(FATAL_ERROR "RtAudio not found using pkg-config. Is rtaudio installed correctly?")
+  # Find PThreads manually on Unix if needed
+  find_package(Threads REQUIRED)
+
 endif()
 
-include_directories(src)
 
 # --- Executable ---
-add_executable(openchordix 
+add_executable(OpenChordix
     src/main.cpp
-    src/AudioManager.cpp)
-
-# --- Include Directories ---
-target_include_directories(openchordix PRIVATE
-    ${RTAUDIO_INCLUDE_DIRS}  # Add RtAudio include path from pkg-config
-    src
+    src/AudioManager.cpp
 )
+
 
 # --- Link Libraries ---
-target_link_libraries(openchordix PRIVATE
-    Threads::Threads
-    ${RTAUDIO_LIBRARIES}
-)
+target_link_libraries(OpenChordix PRIVATE rtaudio::rtaudio)
 
-# --- Compile Definitions (For RtAudio Backends) ---
-target_compile_definitions(openchordix PRIVATE __LINUX_ALSA__)
+if(UNIX AND NOT CMAKE_TOOLCHAIN_FILE)
+  target_link_libraries(OpenChordix PRIVATE Threads::Threads)
+  # if(RTAUDIO_PC_FOUND)
+  #   target_include_directories(OpenChordix PRIVATE ${RTAUDIO_PC_INCLUDE_DIRS})
+  #   target_link_libraries(OpenChordix PRIVATE ${RTAUDIO_PC_LIBRARIES})
+  # endif()
+  # if(ALSA_PC_FOUND)
+  #   target_include_directories(OpenChordix PRIVATE ${ALSA_PC_INCLUDE_DIRS})
+  #   target_link_libraries(OpenChordix PRIVATE ${ALSA_PC_LIBRARIES})
+  # endif()
+endif()
+
+
+# --- Include Source Directory ---
+target_include_directories(OpenChordix PRIVATE src)
+
+
+# --- Compile Definitions (Platform Specific) ---
+if(UNIX AND CMAKE_SYSTEM_NAME MATCHES "Linux")
+    # If RtAudio target doesn't define these, add them
+    # target_compile_definitions(OpenChordix PRIVATE __LINUX_ALSA__)
+    # target_compile_definitions(OpenChordix PRIVATE __UNIX_JACK__)
+endif()
+
 
 # --- Optional: Show found variables for debugging ---
 message(STATUS "Project Source Dir: ${PROJECT_SOURCE_DIR}")
-message(STATUS "Found RtAudio includes: ${RTAUDIO_INCLUDE_DIRS}")
-message(STATUS "Found RtAudio libraries: ${RTAUDIO_LIBRARIES}")
-message(STATUS "Found Threads libraries: ${Threads_LIBRARIES}")
+get_target_property(RTAUDIO_INCLUDE_DIRS rtaudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(RTAUDIO_LINK_LIBRARIES rtaudio::rtaudio INTERFACE_LINK_LIBRARIES)
+message(STATUS "Found RtAudio includes (via target): ${RTAUDIO_INCLUDE_DIRS}")
+message(STATUS "Found RtAudio link libraries (via target): ${RTAUDIO_LINK_LIBRARIES}")
+if(UNIX)
+  message(STATUS "Found Threads libraries: ${Threads_LIBRARIES}")
+endif()
