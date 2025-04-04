@@ -1,4 +1,4 @@
-name: CMake on multiple platforms
+name: CMake Build (Arch Linux & Windows)
 
 on:
   push:
@@ -12,34 +12,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Ubuntu configurations
-          - os: ubuntu-latest
-            compiler: gcc
-            cpp_compiler: g++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config libasound2-dev
-          - os: ubuntu-latest
-            compiler: clang
-            cpp_compiler: clang++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config libasound2-dev
-
-          # Windows configuration (Placeholder - needs CMakeLists update / vcpkg)
+          # Windows configuration (using MSVC)
           - os: windows-latest
-            compiler: cl
-            cpp_compiler: cl
-            os_dependencies: '' # Needs vcpkg or similar
+            compiler: cl # Indicative for MSVC
+            cpp_compiler: cl # Indicative for MSVC
+            os_dependencies: '' # Placeholder - Needs vcpkg/manual setup + CMakeLists update
 
           # Arch Linux configuration (using Docker container on Ubuntu runner)
           - os: ubuntu-latest
             container: archlinux:latest
             compiler: gcc
             cpp_compiler: g++
-            # Dependencies inside the container
             os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
 
-    # Set Default Shell to bash for all steps
     defaults:
       run:
         shell: bash
@@ -49,17 +37,18 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Dependencies
+      # Run the dependency command specific to the OS/container from the matrix
       if: matrix.os_dependencies != ''
       run: ${{ matrix.os_dependencies }}
 
     - name: Configure CMake
+      # Run from the checkout directory. Use relative paths.
       run: >
-        cmake -B build # Build directory relative to current working dir
+        cmake -B build
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.compiler }}
         -DCMAKE_BUILD_TYPE=Release
-        -S . # Source directory is the current working dir
+        -S .
 
     - name: Build
-      # Build from the specified build directory relative to workspace
       run: cmake --build build --config Release
