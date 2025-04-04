@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.19.8)
 project(OpenChordix VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -33,8 +33,8 @@ add_executable(OpenChordix
 
 # --- Link Libraries ---
 if(rtaudio_FOUND)
-  message(STATUS "Linking using IMPORTED target rtaudio::rtaudio")
-  target_link_libraries(OpenChordix PRIVATE rtaudio::rtaudio)
+  message(STATUS "Linking using IMPORTED target RtAudio::rtaudio")
+  target_link_libraries(OpenChordix PRIVATE RtAudio::rtaudio)
 elseif(RTAUDIO_PC_FOUND)
   # Fallback method: Use variables from pkg-config if that succeeded
   message(STATUS "Linking using pkg-config variables for rtaudio")
@@ -69,14 +69,12 @@ target_include_directories(OpenChordix PRIVATE src)
 # --- Optional: Show found variables for debugging ---
 message(STATUS "Project Source Dir: ${PROJECT_SOURCE_DIR}")
 if(rtaudio_FOUND)
-  get_target_property(RTAUDIO_INCLUDE_DIRS rtaudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(RTAUDIO_LINK_LIBRARIES rtaudio::rtaudio INTERFACE_LINK_LIBRARIES)
+  # Use get_target_property with the corrected target name
+  get_target_property(RTAUDIO_INCLUDE_DIRS RtAudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES) 
+  get_target_property(RTAUDIO_LINK_LIBRARIES RtAudio::rtaudio INTERFACE_LINK_LIBRARIES) 
   message(STATUS "Found RtAudio includes (via target): ${RTAUDIO_INCLUDE_DIRS}")
   message(STATUS "Found RtAudio link libraries (via target): ${RTAUDIO_LINK_LIBRARIES}")
 elseif(RTAUDIO_PC_FOUND)
    message(STATUS "Found RtAudio includes (via pkg-config): ${RTAUDIO_PC_INCLUDE_DIRS}")
    message(STATUS "Found RtAudio libraries (via pkg-config): ${RTAUDIO_PC_LIBRARIES}")
 endif()
-# if(UNIX AND Threads_FOUND)
-#   message(STATUS "Found Threads libraries: ${Threads_LIBRARIES}")
-# endif()
