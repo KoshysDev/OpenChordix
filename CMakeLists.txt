@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.19.8)
-project(OpenChordix VERSION 0.1 LANGUAGES CXX)
+project(OpenChordix VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # --- Find Dependencies ---
 find_package(rtaudio QUIET)
+
+# Aubio (pitch detection)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AUBIO REQUIRED aubio)
 
 if(UNIX AND NOT rtaudio_FOUND AND NOT CMAKE_TOOLCHAIN_FILE)
   message(STATUS "rtaudio not found via find_package. Trying pkg-config...")
@@ -30,6 +34,12 @@ add_executable(OpenChordix
     src/AudioManager.cpp
 )
 
+# --- Include Source Directory ---
+target_include_directories(OpenChordix PRIVATE 
+    src
+    ${AUBIO_INCLUDE_DIRS}
+    )
+
 
 # --- Link Libraries ---
 if(rtaudio_FOUND)
@@ -48,16 +58,13 @@ else()
    message(FATAL_ERROR "Cannot link rtaudio - library not found.")
 endif()
 
+target_link_libraries(OpenChordix PRIVATE ${AUBIO_LIBRARIES})
+
 # Link Threads only if found manually (i.e., Unix without vcpkg/CMake config handling it)
 if(UNIX AND NOT rtaudio_FOUND AND Threads_FOUND)
    message(STATUS "Linking Threads manually")
    target_link_libraries(OpenChordix PRIVATE Threads::Threads)
 endif()
-
-
-# --- Include Source Directory ---
-target_include_directories(OpenChordix PRIVATE src)
-
 
 # --- Compile Definitions (Platform Specific) ---
 # if(UNIX AND CMAKE_SYSTEM_NAME MATCHES "Linux" AND RTAUDIO_PC_FOUND)
@@ -68,6 +75,8 @@ target_include_directories(OpenChordix PRIVATE src)
 
 # --- Optional: Show found variables for debugging ---
 message(STATUS "Project Source Dir: ${PROJECT_SOURCE_DIR}")
+message(STATUS "Found Aubio includes: ${AUBIO_INCLUDE_DIRS}")
+message(STATUS "Found Aubio libraries: ${AUBIO_LIBRARIES}")
 if(rtaudio_FOUND)
   # Use get_target_property with the corrected target name
   get_target_property(RTAUDIO_INCLUDE_DIRS RtAudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES) 
