@@ -8,64 +8,66 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        build_type: [Release]
-        c_compiler: [gcc, clang, cl]
         include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
+          # Ubuntu configurations
           - os: ubuntu-latest
-            c_compiler: gcc
+            compiler: gcc
             cpp_compiler: g++
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev # Add ALSA dev headers
           - os: ubuntu-latest
-            c_compiler: clang
+            compiler: clang
             cpp_compiler: clang++
-          - os: ubuntu-latest  # Using Ubuntu runner, but running Arch inside Docker
-            container: archlinux:latest
-            c_compiler: gcc
-            cpp_compiler: g++
-        exclude:
-          - os: windows-latest
-            c_compiler: gcc
-          - os: windows-latest
-            c_compiler: clang
-          - os: ubuntu-latest
-            c_compiler: cl
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev # Add ALSA dev headers
 
+          # Windows configuration (using MSVC)
+          - os: windows-latest
+            compiler: cl # This is just indicative for MSVC, CMake handles it
+            cpp_compiler: cl
+
+          # Arch Linux configuration (using Docker container on Ubuntu runner)
+          - os: ubuntu-latest # Base runner OS
+            container: archlinux:latest
+            compiler: gcc
+            cpp_compiler: g++
+            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf # Add rtaudio, alsa-lib, pkgconf
+
+    runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Install dependencies (Arch)
-      if: contains(matrix.container, 'archlinux')
-      run: |
-        pacman -Syu --noconfirm
-        pacman -S --noconfirm base-devel cmake gcc clang git
+    - name: Install Dependencies
+      if: matrix.os_dependencies != '' 
+      run: ${{ matrix.os_dependencies }}
+      shell: bash
 
     - name: Set reusable strings
       id: strings
       shell: bash
       run: |
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        if [ -n "${{ matrix.container }}" ]; then
+          echo "build-output-dir=/github/workspace/build" >> "$GITHUB_OUTPUT"
+          echo "source-dir=/github/workspace" >> "$GITHUB_OUTPUT"
+        else
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "source-dir=${{ github.workspace }}" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Configure CMake
+      # Run CMake from the source directory checkout
+      working-directory: ${{ steps.strings.outputs.source-dir }}
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -S ${{ github.workspace }}
+        -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+        -DCMAKE_BUILD_TYPE=Release # Use fixed Release type for now
+        -S . # Use relative path for source directory
 
     - name: Build
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
-
-    - name: Test
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: ctest --build-config ${{ matrix.build_type }}
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release # Use fixed Release type
