@@ -31,6 +31,7 @@ endif()
 # --- Executable ---
 add_executable(OpenChordix
     src/main.cpp
+    src/PitchDetector.cpp
     src/AudioManager.cpp
 )
 

@@ -9,6 +9,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <iomanip> 
 
 #include "AudioManager.h"
 
@@ -96,7 +97,7 @@ int main() {
             // Validate the chosen ID
             try {
                 RtAudio::DeviceInfo info = manager.getDeviceInfo(inputDeviceId);
-                if (info.ID == 0) { // Check if getDeviceInfo returned default/empty struct
+                if (info.name.empty() && info.inputChannels == 0 && info.outputChannels == 0) {
                      std::cerr << "Device ID " << inputDeviceId << " not found or invalid." << std::endl;
                 } else if (info.inputChannels == 0) {
                      std::cerr << "Device ID " << inputDeviceId << " (" << info.name << ") has no input channels." << std::endl;
@@ -116,33 +117,53 @@ int main() {
         // 4. Open and Start the Monitoring Stream
         // Use desired sample rate and buffer size (make configurable later)
         unsigned int sampleRate = 48000; // Default rate for interfaces
-        unsigned int bufferFrames = 1024; // framebuffer
+        unsigned int bufferFrames;
 
         if (manager.getCurrentApi() == RtAudio::Api::UNIX_JACK) {
             // For JACK, always request the system default buffer size.
             std::cout << "JACK API in use. Requesting system default buffer size (0)." << std::endl;
-            bufferFrames = 1024; // Let system decide
+            bufferFrames = 0; // Let system decide
         } else {
             // For ALSA, Pulse, or others, use a specific size that works.
+            bufferFrames = 1024;
             std::cout << "Non-JACK API in use. Requesting buffer size: " << bufferFrames << std::endl;
         }
 
         std::cout << "\nAttempting to open monitoring stream..." << std::endl;
         if (manager.openMonitoringStream(inputDeviceId, sampleRate, bufferFrames)) {
+            // Stream opened, PitchDetector created
             std::cout << "Stream opened. Attempting to start..." << std::endl;
             if (manager.startStream()) {
-                std::cout << "\n--- Monitoring Started ---" << std::endl;
-                std::cout << "Playing audio from input device ID " << inputDeviceId << std::endl;
+                std::cout << "\n--- Pitch Detection Started ---" << std::endl;
                 std::cout << "Press Ctrl+C to stop monitoring." << std::endl;
-
-                // Keep running while the stream is active and no quit signal
+                
+                // --- Main Loop ---
+                float last_displayed_freq = -1.0f;
                 while (!g_quit_flag.load()) {
                     if(!manager.isStreamRunning()){
-                        std::cerr << "Warning: Stream stopped unexpectedly!" << std::endl;
+                        std::cerr << "\nWarning: Stream stopped unexpectedly!" << std::endl;
                         break;
                     }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                    // Get latest pitch from AudioManager
+                    float current_freq = manager.getLatestPitchHz();
+
+                    // Display frequency
+                    if (current_freq > 0.0f && current_freq != last_displayed_freq) {
+                        std::cout << "Detected Pitch (Hz): " << std::fixed << std::setprecision(2)
+                                  << current_freq << "        \r";
+                        fflush(stdout);
+                        last_displayed_freq = current_freq;
+                    } else if (current_freq <= 0.0f && last_displayed_freq > 0.0f) {
+                         std::cout << "Detected Pitch (Hz): ---.--        \r";
+                         fflush(stdout);
+                         last_displayed_freq = 0.0f;
+                    }
+
+                    // Sleep briefly
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 }
+                // --- End of Main Loop ---
 
                 std::cout << "\n--- Stopping Monitoring ---" << std::endl;
                 if (!manager.stopStream()) {
