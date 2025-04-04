@@ -16,11 +16,11 @@ jobs:
           - os: ubuntu-latest
             compiler: gcc
             cpp_compiler: g++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config libasound2-dev
           - os: ubuntu-latest
             compiler: clang
             cpp_compiler: clang++
-            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config alsa-lib-dev
+            os_dependencies: sudo apt-get update && sudo apt-get install -y librtaudio-dev pkg-config libasound2-dev
 
           # Windows configuration (Placeholder - needs CMakeLists update / vcpkg)
           - os: windows-latest
