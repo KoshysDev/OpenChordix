@@ -33,6 +33,7 @@ add_executable(OpenChordix
     src/main.cpp
     src/PitchDetector.cpp
     src/AudioManager.cpp
+    src/NoteConverter.cpp
 )
 
 # --- Include Source Directory ---

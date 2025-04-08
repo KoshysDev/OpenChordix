@@ -12,6 +12,7 @@
 #include <iomanip> 
 
 #include "AudioManager.h"
+#include "NoteConverter.h"
 
 // Global flags to signal shutdown from Ctrl+C handler
 std::atomic<bool> g_quit_flag(false);
@@ -31,7 +32,7 @@ void signalHandler(int signal) {
 
 
 int main() {
-    std::cout << "OpenChordix - RtAudio Input Monitor" << std::endl;
+    std::cout << "OpenChordix" << std::endl;
     std::cout << "RtAudio Version: " << RtAudio::getVersion() << std::endl;
 
     // Register signal handler for Ctrl+C
@@ -82,6 +83,7 @@ int main() {
 
         unsigned int inputDeviceId = 0;
         bool validInputDevice = false;
+
         while (!validInputDevice) {
             std::cout << "\nEnter the Device ID of the INPUT device you want to monitor: ";
             std::cin >> inputDeviceId;
@@ -118,6 +120,7 @@ int main() {
         // Use desired sample rate and buffer size (make configurable later)
         unsigned int sampleRate = 48000; // Default rate for interfaces
         unsigned int bufferFrames;
+        NoteConverter noteConverter;
 
         if (manager.getCurrentApi() == RtAudio::Api::UNIX_JACK) {
             // For JACK, always request the system default buffer size.
@@ -139,6 +142,8 @@ int main() {
                 
                 // --- Main Loop ---
                 float last_displayed_freq = -1.0f;
+                std::string last_note_name = "---";
+
                 while (!g_quit_flag.load()) {
                     if(!manager.isStreamRunning()){
                         std::cerr << "\nWarning: Stream stopped unexpectedly!" << std::endl;
@@ -148,16 +153,28 @@ int main() {
                     // Get latest pitch from AudioManager
                     float current_freq = manager.getLatestPitchHz();
 
-                    // Display frequency
-                    if (current_freq > 0.0f && current_freq != last_displayed_freq) {
-                        std::cout << "Detected Pitch (Hz): " << std::fixed << std::setprecision(2)
-                                  << current_freq << "        \r";
+                    // Only update display if frequency seems valid and has changed
+                    if (current_freq > 10.0f && std::abs(current_freq - last_displayed_freq) > 0.5f) {
+                        // Convert frequency to note info
+                        NoteInfo noteInfo = noteConverter.getNoteInfo(current_freq);
+
+                        // Display formatted info
+                        std::cout << "Freq: " << std::fixed << std::setprecision(1) << std::setw(6) << current_freq << " Hz "
+                                  << "| Note: " << std::left << std::setw(3) << (noteInfo.name + std::to_string(noteInfo.octave))
+                                  << "| Cents: " << std::right << std::showpos << std::fixed << std::setprecision(1) << std::setw(6) << noteInfo.cents
+                                  << std::noshowpos 
+                                  << "   \r";
                         fflush(stdout);
+
                         last_displayed_freq = current_freq;
-                    } else if (current_freq <= 0.0f && last_displayed_freq > 0.0f) {
-                         std::cout << "Detected Pitch (Hz): ---.--        \r";
+                        last_note_name = noteInfo.name + std::to_string(noteInfo.octave);
+
+                    } else if (current_freq <= 10.0f && last_displayed_freq > 0.0f) {
+                         // If pitch becomes invalid, display placeholders
+                         std::cout << "Freq:  ---.-- Hz | Note: --- | Cents: ------    \r";
                          fflush(stdout);
-                         last_displayed_freq = 0.0f;
+                         last_displayed_freq = 0.0f; // Reset tracking
+                         last_note_name = "---";
                     }
 
                     // Sleep briefly
