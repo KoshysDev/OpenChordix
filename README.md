@@ -12,6 +12,7 @@
 *   ✅ Runtime selection of Audio API (ALSA, Pulse, JACK, Auto).
 *   ✅ Audio device listing and input device selection.
 *   ✅ Basic audio monitoring loop (input -> output).
+*   ✅ Note and Pitch detection.
 
 ## Key Features Roadmap 🚀
 
@@ -32,9 +33,9 @@ The project aims to implement the following major features incrementally:
 *   **Core Language:** C++ (C++17 or later)
 *   **Build System:** CMake
 *   **Real-time Audio:** RtAudio
-*   **Planned Graphics/Windowing:** BGFX
-*   **Planned UI:** Dear ImGui
-*   **Planned Pitch Detection:** Aubio
+*   **Graphics/Windowing:** BGFX
+*   **UI:** Dear ImGui
+*   **Pitch Detection:** Aubio
 
 ## Platform Support 💻
 
