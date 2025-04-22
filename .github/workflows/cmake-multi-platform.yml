@@ -12,14 +12,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows configuration (using MSVC)
+          # Windows configuration
           - os: windows-latest
-            compiler: cl
-            cpp_compiler: cl
-            os_dependencies: ''
             vcpkg_triplet: x64-windows
 
-          # Arch Linux configuration (using Docker container on Ubuntu runner)
+          # Arch Linux configuration
           - os: ubuntu-latest
             container: archlinux:latest
             compiler: gcc
@@ -32,7 +29,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: ${{ matrix.os == 'windows-latest' && 'powershell' || 'bash' }}
 
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
@@ -40,43 +37,52 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: true
 
-    # Combine vcpkg setup and install for Windows
-    - name: Setup vcpkg and Install RtAudio (Windows only)
-      if: runner.os == 'Windows'
+    # --- VCPKG CACHING (Windows Only) ---
+    - name: Cache vcpkg dependencies (Windows only)
+      if: matrix.os == 'windows-latest'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.VCPKG_ROOT }}/installed/
+        # Calculate the key using hashFiles
+        key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          # Restore key doesn't need the hash, just the prefix
+          vcpkg-${{ matrix.os }}-
+
+    # --- VCPKG SETUP and INSTALL (Windows Only) ---
+    - name: Setup vcpkg and Install ALL Manifest Dependencies (Windows only)
+      if: matrix.os == 'windows-latest'
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgDirectory: ${{ env.VCPKG_ROOT }}
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
-        vcpkgArguments: 'rtaudio pkgconf'
-        # cleanAfterInstall: true # Optional cleanup
 
+    # --- LINUX DEPENDENCIES ---
     - name: Install Dependencies (Linux Container only)
-      if: matrix.os_dependencies != '' && matrix.container != ''
+      if: matrix.os == 'ubuntu-latest' && matrix.container != ''
       run: ${{ matrix.os_dependencies }}
 
-    - name: Configure CMake
+    # --- CMAKE CONFIGURE (Windows) ---
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
-        # Optional: Check CMake version
-        cmake --version
-        CMAKE_ARGS=(
-          "-B build"
-          "-S ."
-          "-DCMAKE_BUILD_TYPE=Release"
-        )
-        # Add compiler definitions if specified in matrix (Not needed for MSVC 'cl')
-        if [[ -n "${{ matrix.cpp_compiler }}" && "${{ matrix.cpp_compiler }}" != "cl" ]]; then
-          CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}")
-        fi
-        if [[ -n "${{ matrix.compiler }}" && "${{ matrix.compiler }}" != "cl" ]]; then
-          CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${{ matrix.compiler }}")
-        fi
-        # Add vcpkg toolchain file ONLY for Windows builds
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
-          CMAKE_ARGS+=("-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake")
-          CMAKE_ARGS+=("-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}")
-        fi
-        echo "Running CMake with args: ${CMAKE_ARGS[@]}"
-        cmake "${CMAKE_ARGS[@]}"
+        Write-Host "Running CMake configure on Windows..."
+        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
+              -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake `
+              -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}
+
+    # --- CMAKE CONFIGURE (Linux) ---
+    - name: Configure CMake (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "Running CMake configure on Linux..."
+        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+              -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+
+    # --- CMAKE BUILD ---
     - name: Build
       run: cmake --build build --config Release
