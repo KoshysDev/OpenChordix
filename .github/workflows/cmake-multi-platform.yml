@@ -48,7 +48,7 @@ jobs:
           ${{ env.VCPKG_ROOT }}/packages/
           ${{ env.VCPKG_ROOT }}/buildtrees/
           ${{ env.VCPKG_ROOT }}/downloads/
-        key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}-${{ hashFiles('**/vcpkg-configuration.json') }} # Add config hash if you use it
+        key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}-${{ hashFiles('**/vcpkg-configuration.json') }}
         restore-keys: |
           vcpkg-${{ matrix.os }}-
 
@@ -59,7 +59,7 @@ jobs:
       with:
         vcpkgDirectory: ${{ env.VCPKG_ROOT }}
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
-        runInstall: true 
+        runInstall: true
 
     # --- LINUX DEPENDENCIES ---
     - name: Install Dependencies (Linux Container only)
@@ -71,11 +71,26 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         Write-Host "Running CMake configure on Windows..."
-        # Explicitly add .lib suffix for find_library on Windows
+        # Construct the expected SDK library path for x64 User Mode libs
+        # Note: WindowsSDKVersion often has a trailing '\', remove it
+        $WinSdkLibVerPath = Join-Path $env:WindowsSdkDir "Lib\$($env:WindowsSDKVersion.TrimEnd('\'))"
+        $SdkLibPath = Join-Path $WinSdkLibVerPath "um\x64"
+        Write-Host "Attempting to add SDK Lib Path hint: $SdkLibPath"
+
+        # Verify the path exists
+        if (Test-Path $SdkLibPath) {
+          Write-Host "SDK Lib Path exists."
+        } else {
+          Write-Warning "Calculated SDK Lib Path does NOT exist: $SdkLibPath. CMake find_library might still fail."
+          # You could add more diagnostics here if needed, like listing $env:WindowsSdkDir\Lib
+        }
+
+        # Pass the constructed SDK path to CMAKE_LIBRARY_PATH
         cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
               -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake `
               -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
-              -DCMAKE_FIND_LIBRARY_SUFFIXES=".lib"
+              -DCMAKE_LIBRARY_PATH="$SdkLibPath" # Tell find_library additional places to look
+              # -DCMAKE_FIND_LIBRARY_SUFFIXES=".lib" # Keep this just in case
 
     # --- CMAKE CONFIGURE (Linux) ---
     - name: Configure CMake (Linux)
