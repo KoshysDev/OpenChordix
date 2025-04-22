@@ -37,8 +37,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        submodules: true
 
     # --- VCPKG CACHING (Windows Only) ---
     - name: Cache vcpkg dependencies (Windows only)
@@ -46,10 +44,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.VCPKG_ROOT }}/installed/
-        # Calculate the key using hashFiles
         key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}
         restore-keys: |
-          # Restore key doesn't need the hash, just the prefix
+          # REMOVED comment from inside the key definition
           vcpkg-${{ matrix.os }}-
 
     # --- VCPKG SETUP and INSTALL (Windows Only) ---
