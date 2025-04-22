@@ -71,9 +71,11 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         Write-Host "Running CMake configure on Windows..."
+        # Explicitly add .lib suffix for find_library on Windows
         cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
               -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake `
-              -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}
+              -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+              -DCMAKE_FIND_LIBRARY_SUFFIXES=".lib"
 
     # --- CMAKE CONFIGURE (Linux) ---
     - name: Configure CMake (Linux)
