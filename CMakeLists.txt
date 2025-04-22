@@ -6,25 +6,38 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # --- Find Dependencies ---
 find_package(rtaudio QUIET)
+find_package(aubio QUIET)
+find_package(Threads REQUIRED)
 
-# Aubio (pitch detection)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(AUBIO REQUIRED aubio)
+# Use PkgConfig as a fallback or primary method on non-Windows systems
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    find_package(PkgConfig REQUIRED)
 
-if(UNIX AND NOT rtaudio_FOUND AND NOT CMAKE_TOOLCHAIN_FILE)
-  message(STATUS "rtaudio not found via find_package. Trying pkg-config...")
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(RTAUDIO_PC REQUIRED rtaudio)
-  pkg_check_modules(ALSA_PC alsa)
-  find_package(Threads REQUIRED)
+    # Find rtaudio via pkg-config if find_package didn't find it
+    if(NOT rtaudio_FOUND)
+        message(STATUS "rtaudio not found via find_package. Trying pkg-config...")
+        pkg_check_modules(RTAUDIO_PC REQUIRED rtaudio)
+        if(NOT RTAUDIO_PC_FOUND)
+            message(FATAL_ERROR "rtaudio could not be found using find_package or pkg-config.")
+        endif()
+        pkg_check_modules(ALSA_PC REQUIRED alsa)
+        if(NOT ALSA_PC_FOUND)
+            message(WARNING "ALSA pkg-config not found, rtaudio might have issues.")
+        endif()
+    endif()
 
-  # Check if pkg-config actually found rtaudio
-  if(NOT RTAUDIO_PC_FOUND)
-    message(FATAL_ERROR "rtaudio could not be found using pkg-config either.")
-  endif()
+    # Find aubio via pkg-config if find_package didn't find it
+    if(NOT aubio_FOUND)
+         message(STATUS "aubio not found via find_package. Trying pkg-config...")
+         pkg_check_modules(AUBIO_PC REQUIRED aubio)
+         if(NOT AUBIO_PC_FOUND)
+            message(FATAL_ERROR "aubio could not be found using find_package or pkg-config.")
+         endif()
+    endif()
 
-elseif(NOT rtaudio_FOUND)
-  message(FATAL_ERROR "rtaudio package not found. Ensure it's installed (e.g., via vcpkg or system package manager) and CMake can find it.")
+elseif(NOT rtaudio_FOUND OR NOT aubio_FOUND)
+    # On Windows, if find_package failed, it's a fatal error (assuming vcpkg)
+    message(FATAL_ERROR "rtaudio or aubio package not found via find_package on Windows. Ensure vcpkg setup is correct.")
 endif()
 
 
@@ -37,55 +50,83 @@ add_executable(OpenChordix
 )
 
 # --- Include Source Directory ---
-target_include_directories(OpenChordix PRIVATE 
-    src
-    ${AUBIO_INCLUDE_DIRS}
-    )
+target_include_directories(OpenChordix PRIVATE src)
+
+# --- Include Directories from Dependencies ---
+if(rtaudio_FOUND)
+    get_target_property(RTAUDIO_INCLUDE_DIRS RtAudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(OpenChordix PRIVATE ${RTAUDIO_INCLUDE_DIRS})
+elseif(RTAUDIO_PC_FOUND)
+    target_include_directories(OpenChordix PRIVATE ${RTAUDIO_PC_INCLUDE_DIRS})
+    if(ALSA_PC_FOUND)
+        target_include_directories(OpenChordix PRIVATE ${ALSA_PC_INCLUDE_DIRS})
+    endif()
+endif()
+
+if(aubio_FOUND)
+    get_target_property(AUBIO_INCLUDE_DIRS aubio::aubio INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(OpenChordix PRIVATE ${AUBIO_INCLUDE_DIRS})
+elseif(AUBIO_PC_FOUND)
+    target_include_directories(OpenChordix PRIVATE ${AUBIO_PC_INCLUDE_DIRS})
+endif()
 
 
 # --- Link Libraries ---
 if(rtaudio_FOUND)
-  message(STATUS "Linking using IMPORTED target RtAudio::rtaudio")
-  target_link_libraries(OpenChordix PRIVATE RtAudio::rtaudio)
+    message(STATUS "Linking RtAudio using IMPORTED target RtAudio::rtaudio")
+    target_link_libraries(OpenChordix PRIVATE RtAudio::rtaudio)
 elseif(RTAUDIO_PC_FOUND)
-  # Fallback method: Use variables from pkg-config if that succeeded
-  message(STATUS "Linking using pkg-config variables for rtaudio")
-  target_include_directories(OpenChordix PRIVATE ${RTAUDIO_PC_INCLUDE_DIRS})
-  target_link_libraries(OpenChordix PRIVATE ${RTAUDIO_PC_LIBRARIES})
-  if(ALSA_PC_FOUND) # Link ALSA if found via pkg-config too
-     target_include_directories(OpenChordix PRIVATE ${ALSA_PC_INCLUDE_DIRS})
-     target_link_libraries(OpenChordix PRIVATE ${ALSA_PC_LIBRARIES})
-  endif()
+    message(STATUS "Linking RtAudio using pkg-config variables")
+    target_link_libraries(OpenChordix PRIVATE ${RTAUDIO_PC_LIBRARIES})
+    if(ALSA_PC_FOUND)
+        message(STATUS "Linking ALSA using pkg-config variables")
+        target_link_libraries(OpenChordix PRIVATE ${ALSA_PC_LIBRARIES})
+    endif()
+    message(STATUS "Linking Threads explicitly")
+    target_link_libraries(OpenChordix PRIVATE Threads::Threads)
 else()
    message(FATAL_ERROR "Cannot link rtaudio - library not found.")
 endif()
 
-target_link_libraries(OpenChordix PRIVATE ${AUBIO_LIBRARIES})
-
-# Link Threads only if found manually (i.e., Unix without vcpkg/CMake config handling it)
-if(UNIX AND NOT rtaudio_FOUND AND Threads_FOUND)
-   message(STATUS "Linking Threads manually")
-   target_link_libraries(OpenChordix PRIVATE Threads::Threads)
+if(aubio_FOUND)
+   message(STATUS "Linking Aubio using IMPORTED target aubio::aubio")
+   target_link_libraries(OpenChordix PRIVATE aubio::aubio)
+elseif(AUBIO_PC_FOUND)
+   message(STATUS "Linking Aubio using pkg-config variables")
+   target_link_libraries(OpenChordix PRIVATE ${AUBIO_PC_LIBRARIES})
+else()
+   message(FATAL_ERROR "Cannot link aubio - library not found.")
 endif()
 
-# --- Compile Definitions (Platform Specific) ---
-# if(UNIX AND CMAKE_SYSTEM_NAME MATCHES "Linux" AND RTAUDIO_PC_FOUND)
-    # target_compile_definitions(OpenChordix PRIVATE ${RTAUDIO_PC_CFLAGS_OTHER})
-    # target_compile_definitions(OpenChordix PRIVATE __LINUX_ALSA__) 
-# endif()
+# Link Threads::Threads again just in case it wasn't linked via rtaudio pkg-config section
+if(NOT rtaudio_FOUND)
+    find_package(Threads REQUIRED) 
+    target_link_libraries(OpenChordix PRIVATE Threads::Threads)
+endif()
 
 
-# --- Optional: Show found variables for debugging ---
+# --- Diagnostic Messages (Comment out for prod) ---
 message(STATUS "Project Source Dir: ${PROJECT_SOURCE_DIR}")
-message(STATUS "Found Aubio includes: ${AUBIO_INCLUDE_DIRS}")
-message(STATUS "Found Aubio libraries: ${AUBIO_LIBRARIES}")
+if(aubio_FOUND)
+    get_target_property(AUBIO_INCLUDE_DIRS aubio::aubio INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(AUBIO_LINK_LIBRARIES aubio::aubio INTERFACE_LINK_LIBRARIES)
+    message(STATUS "Found Aubio includes (via target): ${AUBIO_INCLUDE_DIRS}")
+    message(STATUS "Found Aubio libraries (via target): ${AUBIO_LINK_LIBRARIES}")
+elseif(AUBIO_PC_FOUND)
+    message(STATUS "Found Aubio includes (via pkg-config): ${AUBIO_PC_INCLUDE_DIRS}")
+    message(STATUS "Found Aubio libraries (via pkg-config): ${AUBIO_PC_LIBRARIES}")
+endif()
+
 if(rtaudio_FOUND)
-  # Use get_target_property with the corrected target name
-  get_target_property(RTAUDIO_INCLUDE_DIRS RtAudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES) 
-  get_target_property(RTAUDIO_LINK_LIBRARIES RtAudio::rtaudio INTERFACE_LINK_LIBRARIES) 
-  message(STATUS "Found RtAudio includes (via target): ${RTAUDIO_INCLUDE_DIRS}")
-  message(STATUS "Found RtAudio link libraries (via target): ${RTAUDIO_LINK_LIBRARIES}")
+    get_target_property(RTAUDIO_INCLUDE_DIRS RtAudio::rtaudio INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(RTAUDIO_LINK_LIBRARIES RtAudio::rtaudio INTERFACE_LINK_LIBRARIES)
+    message(STATUS "Found RtAudio includes (via target): ${RTAUDIO_INCLUDE_DIRS}")
+    message(STATUS "Found RtAudio link libraries (via target): ${RTAUDIO_LINK_LIBRARIES}")
 elseif(RTAUDIO_PC_FOUND)
    message(STATUS "Found RtAudio includes (via pkg-config): ${RTAUDIO_PC_INCLUDE_DIRS}")
    message(STATUS "Found RtAudio libraries (via pkg-config): ${RTAUDIO_PC_LIBRARIES}")
+   if(ALSA_PC_FOUND)
+       message(STATUS "Found ALSA includes (via pkg-config): ${ALSA_PC_INCLUDE_DIRS}")
+       message(STATUS "Found ALSA libraries (via pkg-config): ${ALSA_PC_LIBRARIES}")
+   endif()
 endif()

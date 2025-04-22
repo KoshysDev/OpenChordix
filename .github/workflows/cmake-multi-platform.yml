@@ -59,13 +59,11 @@ jobs:
       run: |
         # Optional: Check CMake version
         cmake --version
-
         CMAKE_ARGS=(
           "-B build"
           "-S ."
           "-DCMAKE_BUILD_TYPE=Release"
         )
-
         # Add compiler definitions if specified in matrix (Not needed for MSVC 'cl')
         if [[ -n "${{ matrix.cpp_compiler }}" && "${{ matrix.cpp_compiler }}" != "cl" ]]; then
           CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}")
@@ -73,16 +71,12 @@ jobs:
         if [[ -n "${{ matrix.compiler }}" && "${{ matrix.compiler }}" != "cl" ]]; then
           CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${{ matrix.compiler }}")
         fi
-
         # Add vcpkg toolchain file ONLY for Windows builds
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           CMAKE_ARGS+=("-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake")
           CMAKE_ARGS+=("-DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}")
         fi
-
         echo "Running CMake with args: ${CMAKE_ARGS[@]}"
         cmake "${CMAKE_ARGS[@]}"
-
-
     - name: Build
       run: cmake --build build --config Release
