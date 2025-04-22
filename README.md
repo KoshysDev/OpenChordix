@@ -1,8 +1,10 @@
 # OpenChordix
 
 [![GitHub repo size](https://img.shields.io/github/repo-size/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/)
-[![GitHub last commit](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/commits/linux-build)
+[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/linux-build)](https://github.com/KoshysDev/OpenChordix/commits/linux-build)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+**Branch: `linux-build` (✅ Active Development Branch)**
 
 **An open-source, cross-platform game/tool inspired by Rocksmith for learning guitar and bass using real-time pitch detection. Without sound detection setting up pain.**
 
@@ -12,6 +14,7 @@
 *   ✅ Runtime selection of Audio API (ALSA, Pulse, JACK, Auto).
 *   ✅ Audio device listing and input device selection.
 *   ✅ Basic audio monitoring loop (input -> output).
+*   ✅ Note and Pitch detection.
 
 ## Key Features Roadmap 🚀
 
@@ -32,9 +35,9 @@ The project aims to implement the following major features incrementally:
 *   **Core Language:** C++ (C++17 or later)
 *   **Build System:** CMake
 *   **Real-time Audio:** RtAudio
-*   **Planned Graphics/Windowing:** BGFX
-*   **Planned UI:** Dear ImGui
-*   **Planned Pitch Detection:** TBD (Exploring options like Aubio, FFTW, KissFFT)
+*   **Graphics/Windowing:** BGFX
+*   **UI:** Dear ImGui
+*   **Pitch Detection:** Aubio
 
 ## Platform Support 💻
 

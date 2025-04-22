@@ -9,8 +9,10 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <iomanip> 
 
 #include "AudioManager.h"
+#include "NoteConverter.h"
 
 // Global flags to signal shutdown from Ctrl+C handler
 std::atomic<bool> g_quit_flag(false);
@@ -30,7 +32,7 @@ void signalHandler(int signal) {
 
 
 int main() {
-    std::cout << "OpenChordix - RtAudio Input Monitor" << std::endl;
+    std::cout << "OpenChordix" << std::endl;
     std::cout << "RtAudio Version: " << RtAudio::getVersion() << std::endl;
 
     // Register signal handler for Ctrl+C
@@ -81,6 +83,7 @@ int main() {
 
         unsigned int inputDeviceId = 0;
         bool validInputDevice = false;
+
         while (!validInputDevice) {
             std::cout << "\nEnter the Device ID of the INPUT device you want to monitor: ";
             std::cin >> inputDeviceId;
@@ -96,7 +99,7 @@ int main() {
             // Validate the chosen ID
             try {
                 RtAudio::DeviceInfo info = manager.getDeviceInfo(inputDeviceId);
-                if (info.ID == 0) { // Check if getDeviceInfo returned default/empty struct
+                if (info.name.empty() && info.inputChannels == 0 && info.outputChannels == 0) {
                      std::cerr << "Device ID " << inputDeviceId << " not found or invalid." << std::endl;
                 } else if (info.inputChannels == 0) {
                      std::cerr << "Device ID " << inputDeviceId << " (" << info.name << ") has no input channels." << std::endl;
@@ -116,33 +119,68 @@ int main() {
         // 4. Open and Start the Monitoring Stream
         // Use desired sample rate and buffer size (make configurable later)
         unsigned int sampleRate = 48000; // Default rate for interfaces
-        unsigned int bufferFrames = 1024; // framebuffer
+        unsigned int bufferFrames;
+        NoteConverter noteConverter;
 
         if (manager.getCurrentApi() == RtAudio::Api::UNIX_JACK) {
             // For JACK, always request the system default buffer size.
             std::cout << "JACK API in use. Requesting system default buffer size (0)." << std::endl;
-            bufferFrames = 1024; // Let system decide
+            bufferFrames = 0; // Let system decide
         } else {
             // For ALSA, Pulse, or others, use a specific size that works.
+            bufferFrames = 1024;
             std::cout << "Non-JACK API in use. Requesting buffer size: " << bufferFrames << std::endl;
         }
 
         std::cout << "\nAttempting to open monitoring stream..." << std::endl;
         if (manager.openMonitoringStream(inputDeviceId, sampleRate, bufferFrames)) {
+            // Stream opened, PitchDetector created
             std::cout << "Stream opened. Attempting to start..." << std::endl;
             if (manager.startStream()) {
-                std::cout << "\n--- Monitoring Started ---" << std::endl;
-                std::cout << "Playing audio from input device ID " << inputDeviceId << std::endl;
+                std::cout << "\n--- Pitch Detection Started ---" << std::endl;
                 std::cout << "Press Ctrl+C to stop monitoring." << std::endl;
+                
+                // --- Main Loop ---
+                float last_displayed_freq = -1.0f;
+                std::string last_note_name = "---";
 
-                // Keep running while the stream is active and no quit signal
                 while (!g_quit_flag.load()) {
                     if(!manager.isStreamRunning()){
-                        std::cerr << "Warning: Stream stopped unexpectedly!" << std::endl;
+                        std::cerr << "\nWarning: Stream stopped unexpectedly!" << std::endl;
                         break;
                     }
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                    // Get latest pitch from AudioManager
+                    float current_freq = manager.getLatestPitchHz();
+
+                    // Only update display if frequency seems valid and has changed
+                    if (current_freq > 10.0f && std::abs(current_freq - last_displayed_freq) > 0.5f) {
+                        // Convert frequency to note info
+                        NoteInfo noteInfo = noteConverter.getNoteInfo(current_freq);
+
+                        // Display formatted info
+                        std::cout << "Freq: " << std::fixed << std::setprecision(1) << std::setw(6) << current_freq << " Hz "
+                                  << "| Note: " << std::left << std::setw(3) << (noteInfo.name + std::to_string(noteInfo.octave))
+                                  << "| Cents: " << std::right << std::showpos << std::fixed << std::setprecision(1) << std::setw(6) << noteInfo.cents
+                                  << std::noshowpos 
+                                  << "   \r";
+                        fflush(stdout);
+
+                        last_displayed_freq = current_freq;
+                        last_note_name = noteInfo.name + std::to_string(noteInfo.octave);
+
+                    } else if (current_freq <= 10.0f && last_displayed_freq > 0.0f) {
+                         // If pitch becomes invalid, display placeholders
+                         std::cout << "Freq:  ---.-- Hz | Note: --- | Cents: ------    \r";
+                         fflush(stdout);
+                         last_displayed_freq = 0.0f; // Reset tracking
+                         last_note_name = "---";
+                    }
+
+                    // Sleep briefly
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 }
+                // --- End of Main Loop ---
 
                 std::cout << "\n--- Stopping Monitoring ---" << std::endl;
                 if (!manager.stopStream()) {

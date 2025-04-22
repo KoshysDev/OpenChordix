@@ -24,7 +24,7 @@ jobs:
             container: archlinux:latest
             compiler: gcc
             cpp_compiler: g++
-            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio alsa-lib pkgconf
+            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio aubio alsa-lib pkgconf
             vcpkg_triplet: ''
 
     runs-on: ${{ matrix.os }}
@@ -48,7 +48,7 @@ jobs:
       with:
         vcpkgDirectory: ${{ env.VCPKG_ROOT }}
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
-        vcpkgArguments: 'rtaudio' # Install rtaudio package
+        vcpkgArguments: 'rtaudio pkgconf'
         # cleanAfterInstall: true # Optional cleanup
 
     - name: Install Dependencies (Linux Container only)

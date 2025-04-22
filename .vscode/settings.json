@@ -75,6 +75,7 @@
         "valarray": "cpp",
         "variant": "cpp",
         "set": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "unordered_set": "cpp"
     }
 }
