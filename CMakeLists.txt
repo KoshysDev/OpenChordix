@@ -112,8 +112,11 @@ elseif(AUBIO_PC_FOUND)
    message(STATUS "Linking Aubio using pkg-config variables")
    target_link_libraries(OpenChordix PRIVATE ${AUBIO_PC_LIBRARIES})
 elseif(aubio_FOUND)
-   message(STATUS "Linking Aubio using library name (target missing)")
-   target_link_libraries(OpenChordix PRIVATE aubio)
+   message(STATUS "Linking Aubio using debug/optimized names (target missing)")s
+   target_link_libraries(OpenChordix PRIVATE
+        debug aubiod_s
+        optimized aubio_s
+   )
 else()
    message(FATAL_ERROR "Cannot link aubio - library not found.")
 endif()
