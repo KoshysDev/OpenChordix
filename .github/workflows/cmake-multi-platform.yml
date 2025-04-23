@@ -61,6 +61,18 @@ jobs:
         vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
         runInstall: true
 
+    # --- DIAGNOSTIC STEP ---
+    - name: List Vcpkg Lib Directory (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        $libDir = Join-Path $env:VCPKG_ROOT "installed\${{ matrix.vcpkg_triplet }}\lib"
+        Write-Host "Listing contents of Release Lib dir: $libDir"
+        Get-ChildItem -Path $libDir -Filter *.lib -ErrorAction SilentlyContinue | Select-Object Name, Length
+        $debugLibDir = Join-Path $env:VCPKG_ROOT "installed\${{ matrix.vcpkg_triplet }}\debug\lib"
+        Write-Host "Listing contents of Debug Lib dir: $debugLibDir"
+        Get-ChildItem -Path $debugLibDir -Filter *.lib -ErrorAction SilentlyContinue | Select-Object Name, Length
+      continue-on-error: true # Don't fail the build if listing fails, it's just diagnostic
+
     # --- LINUX DEPENDENCIES ---
     - name: Install Dependencies (Linux Container only)
       if: matrix.os == 'ubuntu-latest' && matrix.container != ''
