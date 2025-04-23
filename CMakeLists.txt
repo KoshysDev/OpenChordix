@@ -114,8 +114,8 @@ elseif(AUBIO_PC_FOUND)
 elseif(aubio_FOUND)
    message(STATUS "Linking Aubio using debug/optimized names (target missing)")
    target_link_libraries(OpenChordix PRIVATE
-        debug aubiod_s
-        optimized aubio_s
+        debug aubiod
+        optimized aubio
    )
 else()
    message(FATAL_ERROR "Cannot link aubio - library not found.")
