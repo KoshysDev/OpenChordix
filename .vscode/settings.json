@@ -77,5 +77,6 @@
         "set": "cpp",
         "cfenv": "cpp",
         "unordered_set": "cpp"
-    }
+    },
+    "C_Cpp.default.compilerPath": "c:\\Program Files\\CMake\\bin\\cmake.exe"
 }

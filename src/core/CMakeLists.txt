@@ -11,9 +11,14 @@ target_include_directories(openchordix_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
+find_package(Aubio CONFIG REQUIRED)
+find_package(RtAudio CONFIG REQUIRED)
+
 # --- Link Libraries ---
 target_link_libraries(openchordix_core PUBLIC
     Threads::Threads
+    Aubio::aubio
+    RtAudio::rtaudio
 
     # RtAudio Linking
     $<$<TARGET_EXISTS:RtAudio::rtaudio>:RtAudio::rtaudio> # Use target if available (Windows/vcpkg)
