@@ -52,13 +52,9 @@ The project aims to implement the following major features incrementally:
 ```bash
 # Install essential tools if needed
 sudo pacman -Syu base-devel cmake git
-#Or if you have yay:
-yay -Syu base-devel cmake git
 
-# Install RtAudio and ALSA libraries
-sudo pacman -S rtaudio alsa-lib --needed
-# Or:
-yay -S rtaudio alsa-lib --needed
+# Install RtAudio and AUBIO libraries
+sudo pacman -S rtaudio aubio --needed
 ```
 
 ### Compilation
@@ -109,6 +105,8 @@ cd ..
 ### 4. Build the project
 You can build manually:
 ```bash
+mkdir build
+
 cmake -S . -B build -G "MinGW Makefiles" ^
   -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake ^
   -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic ^
