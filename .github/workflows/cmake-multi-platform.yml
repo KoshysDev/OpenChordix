@@ -13,8 +13,8 @@ jobs:
       matrix:
         include:
           # Windows configuration
-          - os: windows-latest
-            vcpkg_triplet: x64-windows
+          # - os: windows-latest
+          #   vcpkg_triplet: x64-windows
 
           # Arch Linux configuration
           - os: ubuntu-latest

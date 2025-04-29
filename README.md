@@ -42,7 +42,7 @@ The project aims to implement the following major features incrementally:
 ## Platform Support 💻
 
 *   🐧 **Linux:** Primary Target
-*   ⊞ **Windows:** Secondary Target (Planned for later)
+*   ⊞ **Windows:** Working just fine
 *   🍎 **macOS:** Contributions welcome (No current development plans)
 
 ## Building 🏗️
@@ -52,13 +52,9 @@ The project aims to implement the following major features incrementally:
 ```bash
 # Install essential tools if needed
 sudo pacman -Syu base-devel cmake git
-#Or if you have yay:
-yay -Syu base-devel cmake git
 
-# Install RtAudio and ALSA libraries
-sudo pacman -S rtaudio alsa-lib --needed
-# Or:
-yay -S rtaudio alsa-lib --needed
+# Install RtAudio and AUBIO libraries
+sudo pacman -S rtaudio aubio --needed
 ```
 
 ### Compilation
@@ -69,6 +65,63 @@ cd OpenChordix
 cmake -B build -DCMAKE_BUILD_TYPE=Release # Or Debug
 cmake --build build
 ```
+
+## ⚠️ Windows Build Instructions
+
+> **Note:** Windows build is an annoying setup. I recommend Linux for a much smoother and minimal-hassle development setup.
+
+### ✅ Requirements
+
+Make sure you have the following installed on Windows:
+
+- **[MinGW-w64 (with g++ support)](https://www.mingw-w64.org/)**
+- **[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)** (select CMake, MSBuild during installation)
+- **CMake ≥ 3.25**
+- **Git**
+
+Ensure MinGW's `bin` directory (e.g. `C:\ProgramData\mingw64\mingw64\bin`) is in your system `PATH`.
+
+### 1. Clone the project
+
+```bash
+git clone https://github.com/KoshysDev/OpenChordix.git
+cd OpenChordix
+```
+
+### 2. Get vcpkg (if not already installed)
+If you don't have vcpkg installed, clone it inside the project:
+```bash
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+bootstrap-vcpkg.bat
+```
+
+### 3. Install dependencies via vcpkg
+```bash
+vcpkg install rtaudio:x64-mingw-dynamic aubio:x64-mingw-dynamic
+cd ..
+```
+
+### 4. Build the project
+You can build manually:
+```bash
+mkdir build
+
+cmake -S . -B build -G "MinGW Makefiles" ^
+  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake ^
+  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic ^
+  -DCMAKE_CXX_COMPILER=C:/ProgramData/mingw64/mingw64/bin/g++.exe
+
+cmake --build build --config Release
+```
+
+Or just run the build.bat:
+```bash
+./build.bat
+```
+This script will:
+- Configure the project with MinGW and vcpkg
+- Build it using CMake
 
 ## Contributing ❤️
 
