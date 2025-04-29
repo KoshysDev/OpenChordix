@@ -4,7 +4,9 @@
   "dependencies": [
     "rtaudio",
     "aubio", 
-    "pkgconf"
+    "pkgconf",
+    "sdl2",
+    "bgfx" 
   ],
   "builtin-baseline": "41f90cc7b84116517b01f729af17fc735e9cd821"
 }

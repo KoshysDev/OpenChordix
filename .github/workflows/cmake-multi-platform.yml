@@ -21,7 +21,7 @@ jobs:
             container: archlinux:latest
             compiler: gcc
             cpp_compiler: g++
-            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio aubio alsa-lib pkgconf
+            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio aubio alsa-lib pkgconf sdl2 bgfx
             vcpkg_triplet: ''
 
     runs-on: ${{ matrix.os }}

@@ -10,6 +10,8 @@ message(STATUS "Top-Level: Finding External Dependencies...")
 find_package(rtaudio QUIET)
 find_package(aubio QUIET)
 find_package(Threads REQUIRED)
+find_package(SDL2 REQUIRED)     
+find_package(bgfx QUIET)  
 
 # Use PkgConfig as a fallback or primary method on non-Windows systems
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -37,7 +39,19 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
          endif()
     endif()
 
-elseif(NOT rtaudio_FOUND OR NOT aubio_FOUND)
+    # Find bgfx
+    if(NOT bgfx_FOUND AND NOT TARGET bgfx::bgfx)
+         message(STATUS "Top-Level: bgfx not found via find_package. Trying pkg-config...")
+         pkg_check_modules(BGFX_PC REQUIRED bgfx)
+    endif()
+
+    # Find SDL2
+    if(NOT SDL2_FOUND AND NOT TARGET SDL2::SDL2)
+         message(STATUS "Top-Level: SDL2 target not found via find_package. Trying pkg-config...")
+         pkg_check_modules(SDL2_PC REQUIRED sdl2)
+    endif()
+
+elseif(NOT rtaudio_FOUND OR NOT aubio_FOUND OR NOT bgfx_FOUND OR NOT SDL2_FOUND)
     # On Windows, if either package failed find_package (QUIET), it's an error
     message(FATAL_ERROR "rtaudio or aubio package not found via find_package on Windows. Ensure vcpkg setup is correct.")
 endif()
@@ -47,6 +61,7 @@ message(STATUS "Top-Level: Adding subdirectories...")
 
 # --- ubdirectories ---
 add_subdirectory(src/core)
+#add_subdirectory(src/gui)
 add_subdirectory(src/app)
 
 message(STATUS "Top-Level: Finished processing.")
