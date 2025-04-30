@@ -61,7 +61,7 @@ message(STATUS "Top-Level: Adding subdirectories...")
 
 # --- ubdirectories ---
 add_subdirectory(src/core)
-#add_subdirectory(src/gui)
+add_subdirectory(src/gui)
 add_subdirectory(src/app)
 
 message(STATUS "Top-Level: Finished processing.")
