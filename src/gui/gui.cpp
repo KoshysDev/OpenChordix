@@ -55,11 +55,19 @@ bool GUI::initSDL(int width, int height, const std::string& title) {
         return false;
     }
 
+    // m_window = SDL_CreateWindow(
+    //     title.c_str(),
+    //     SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    //     width, height,
+    //     SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE // Allow resizing
+    // );
+
+    Uint32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP;
+
     m_window = SDL_CreateWindow(
         title.c_str(),
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        width, height,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE // Allow resizing
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0,
+        window_flags
     );
 
     if (m_window == nullptr) {
@@ -67,7 +75,12 @@ bool GUI::initSDL(int width, int height, const std::string& title) {
         SDL_Quit();
         return false;
     }
-    std::cout << "SDL Initialized and Window created." << std::endl;
+
+    // Save size for bgfx
+    SDL_GetWindowSize(m_window, &m_width, &m_height);
+
+    std::cout << "SDL Initialized and Window created in fullscreen-desktop mode with size: " << m_width << "x" << m_height << "." << std::endl;
+    
     return true;
 }
 
