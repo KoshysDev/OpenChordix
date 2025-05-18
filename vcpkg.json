@@ -6,7 +6,9 @@
     "aubio", 
     "pkgconf",
     "sdl2",
-    "bgfx" 
+    "bgfx",
+    "nlohmann-json",
+    "imgui"
   ],
   "builtin-baseline": "41f90cc7b84116517b01f729af17fc735e9cd821"
 }
