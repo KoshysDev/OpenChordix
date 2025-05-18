@@ -1,6 +1,10 @@
 #include "gui.h"
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
+
+#include <bx/math.h>
+#include <bx/timer.h>
 
 // Platform-specific window handles
 #include <SDL2/SDL_syswm.h>
@@ -16,7 +20,9 @@
 
 // --- Constructor / Destructor ---
 
-GUI::GUI() = default;
+GUI::GUI() {
+    m_lastTime = bx::getHPCounter();
+}
 
 GUI::~GUI() {
     shutdown();
@@ -80,7 +86,7 @@ bool GUI::initSDL(int width, int height, const std::string& title) {
     SDL_GetWindowSize(m_window, &m_width, &m_height);
 
     std::cout << "SDL Initialized and Window created in fullscreen-desktop mode with size: " << m_width << "x" << m_height << "." << std::endl;
-    
+
     return true;
 }
 
@@ -141,6 +147,76 @@ bool GUI::initBgfx(int width, int height) {
     return true;
 }
 
+void GUI::updateSplashScreen(float deltaTime) {
+    m_splashTimer += deltaTime;
+
+    if(m_splashTimer >= m_splashTotalDuration) {
+        m_currentState = AppState::MAIN_GAME;
+        std::cout << "Splash screen finished." << std::endl;
+        //clear view
+        bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x303030FF, 1.0f, 0);
+    }
+}
+
+void GUI::renderSplashScreen() {
+    float alpha = 0.0f;
+    uint32_t baseColorRGB = 0x00000000;
+
+    if (m_splashTimer < m_splashFadeInDuration) {
+        alpha = m_splashTimer / m_splashFadeInDuration;
+    }else if (m_splashTimer < m_splashFadeInDuration + m_splashHoldDuration) {
+        alpha = 1.0f;
+    } else if (m_splashTimer < m_splashTotalDuration) {
+        float fadeOutProgress = (m_splashTimer - (m_splashFadeInDuration + m_splashHoldDuration)) / m_splashFadeOutDuration;
+        alpha = 1.0f - fadeOutProgress;
+    } else {
+        alpha = 0.0f;
+    }
+
+    // Clamp alpha
+    alpha = std::max(0.0f, std::min(1.0f, alpha));
+    uint8_t alpha_u8 = static_cast<uint8_t>(alpha * 255.0f);
+
+    // Lerp between colors
+    uint32_t splashIntroColor = 0x1A1A1AFF;
+    uint32_t mainGameColor = 0x1A1A1AFF;
+
+    uint8_t sr = (splashIntroColor >> 24) & 0xFF;
+    uint8_t sg = (splashIntroColor >> 16) & 0xFF;
+    uint8_t sb = (splashIntroColor >> 8) & 0xFF;
+
+    uint8_t mr = (mainGameColor >> 24) & 0xFF;
+    uint8_t mg = (mainGameColor >> 16) & 0xFF;
+    uint8_t mb = (mainGameColor >> 8) & 0xFF;
+
+    float t = 0.0f; // Interpolation value
+
+    if(m_splashTimer < m_splashFadeInDuration) {
+        t = m_splashTimer / m_splashFadeInDuration;
+    } else if (m_splashTimer < m_splashFadeInDuration + m_splashHoldDuration) {
+        t = 1.0f;
+    } else if (m_splashTimer < m_splashFadeInDuration) {
+        t = 1.0f - ((m_splashTimer - (m_splashFadeInDuration + m_splashHoldDuration)) / m_splashFadeOutDuration); 
+    } else {
+        t = 0.0f;
+    }
+
+    t = std::max(0.0f, std::min(1.0f, t));
+
+    uint8_t r = static_cast<uint8_t>(mr + (sr - mr) * t);
+    uint8_t g = static_cast<uint8_t>(mg + (sg - mg) * t);
+    uint8_t b = static_cast<uint8_t>(mb + (sb - mb) * t);
+    uint32_t finalClearColor = (r << 24) | (g << 16) | (b << 8) | 0xFF;
+
+    bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, finalClearColor, 1.0f, 0);
+}
+
+void GUI::updateMainGame(float deltaTime) {
+    (void)deltaTime;
+}
+
+void GUI::renderMainGame() {}
+
 bool GUI::handleEvents() {
     SDL_Event event;
     bool running = true;
@@ -179,13 +255,43 @@ void GUI::run() {
 
     std::cout << "Starting main loop..." << std::endl;
 
+    // Reset m_lastTime
+    m_lastTime = bx::getHPCounter();
+
     // Loop until explicitly told to quit by events or requestShutdown()
     while (!m_quitRequested.load()) {
+
+        // Calculate delta time
+        int64_t now = bx::getHPCounter();
+        int64_t frameTime = now - m_lastTime;
+        m_lastTime = now;
+        const int64_t freq = bx::getHPFrequency();
+        float deltaTime = (float)frameTime / freq;
 
         // 1. Handle Input and Window Events
         if (!handleEvents()) {
             m_quitRequested.store(true); // SDL_QUIT or Escape key triggered exit
             continue;
+        }
+
+        // --- Update based on state ---
+        if (m_currentState == AppState::SPLASH_SCREEN) {
+            updateSplashScreen(deltaTime);
+        } else if (m_currentState == AppState::MAIN_GAME) {
+            updateMainGame(deltaTime);
+        }
+
+        // --- Rendering ---
+        bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height));
+        float viewMtx[16], projMtx[16];
+        bx::mtxIdentity(viewMtx);
+        bx::mtxOrtho(projMtx, 0.0f, (float)m_width, (float)m_height, 0.0f, 0.0f, 100.0f, 0.0f, bgfx::getCaps()->homogeneousDepth);
+        bgfx::setViewTransform(0, viewMtx, projMtx);
+
+        if (m_currentState == AppState::SPLASH_SCREEN) {
+            renderSplashScreen();
+        } else if (m_currentState == AppState::MAIN_GAME) {
+            renderMainGame();
         }
 
         bgfx::touch(0);
@@ -203,11 +309,13 @@ void GUI::shutdown() {
         bgfx::shutdown();
         m_bgfxInitialized = false;
     }
+
     if (m_window) {
         std::cout << "Destroying SDL Window..." << std::endl;
         SDL_DestroyWindow(m_window);
         m_window = nullptr;
     }
+
     std::cout << "Quitting SDL..." << std::endl;
     SDL_Quit();
     std::cout << "GUI Shutdown complete." << std::endl;
