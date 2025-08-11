@@ -14,13 +14,13 @@ jobs:
         include:
           # Windows configuration
           - os: windows-latest
-            generator: Ninja
-            vcpkg_triplet: x64-windows
+            generator: MinGW Makefiles
+            vcpkg_triplet: x64-mingw-dynamic
 
           # Arch Linux configuration
           - os: ubuntu-latest
             container: archlinux:latest
-            generator: Ninja
+            generator: Unix Makefiles
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -50,6 +50,12 @@ jobs:
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
+      - name: Install MinGW toolchain [Windows]
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install mingw -y
+          echo "C:\tools\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
       - name: Setup vcpkg (manifest) [Windows]
         if: matrix.os == 'windows-latest'
         uses: lukka/run-vcpkg@v11.5
@@ -57,6 +63,15 @@ jobs:
           vcpkgDirectory: ${{ env.VCPKG_ROOT }}
           vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
           runInstall: true
+
+      - name: Cache CMake build folder [Windows]
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-build-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'cmake/**/*.cmake', 'src/**/*.cpp', 'src/**/*.h', 'vcpkg.json') }}
+          restore-keys: |
+            cmake-build-${{ runner.os }}-
 
       - name: Configure (Windows)
         if: matrix.os == 'windows-latest'
@@ -73,27 +88,52 @@ jobs:
         run: |
           set -euxo pipefail
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel cmake ninja git pkgconf sdl2 rtaudio aubio ffmpeg alsa-lib sudo
+          pacman -S --noconfirm base-devel cmake git pkgconf sdl2 rtaudio aubio ffmpeg alsa-lib sudo
           useradd -m builder || true
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
           chown -R builder:builder "$GITHUB_WORKSPACE"
 
+      - name: Cache AUR & pacman packages [Arch container]
+        if: matrix.os == 'ubuntu-latest' && matrix.container != ''
+        uses: actions/cache@v4
+        with:
+          path: |
+            /home/builder/.cache/yay
+            /var/cache/pacman/pkg
+          key: aur-cache-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+          restore-keys: |
+            aur-cache-${{ runner.os }}-
+
+      - name: Install AUR deps via yay [Arch container]
+        if: matrix.os == 'ubuntu-latest' && matrix.container != ''
+        run: |
+          set -euxo pipefail
           sudo -u builder bash -lc '
             cd ~
-            git clone https://aur.archlinux.org/yay-bin.git
-            cd yay-bin && makepkg -si --noconfirm --needed
+            if [ ! -d yay-bin ]; then
+              git clone https://aur.archlinux.org/yay-bin.git
+            fi
+            cd yay-bin
+            makepkg -si --noconfirm --needed
             export YAYFLAGS="--noconfirm --needed --mflags --noconfirm"
             yay -Syu $YAYFLAGS
             yay -S $YAYFLAGS bgfx-cmake-git imgui-full
           '
 
+      - name: Cache CMake build folder [Linux]
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-build-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'cmake/**/*.cmake', 'src/**/*.cpp', 'src/**/*.h') }}
+          restore-keys: |
+            cmake-build-${{ runner.os }}-
+
       # --- Configure CMake (Linux) ---
       - name: Configure (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+          cmake -B build -S . -G "${{ matrix.generator }}" -DCMAKE_BUILD_TYPE=Release
 
       # ---------- Build (both platforms) ----------
       - name: Build
