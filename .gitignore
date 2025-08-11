@@ -15,14 +15,8 @@ build/
 /[Oo]ut*/
 /[Bb]in/
 
-# vcpkg build artifacts
-/external/vcpkg/buildtrees/
-/external/vcpkg/packages/
-/external/vcpkg/downloads/
-/external/vcpkg/installed/
-
-# CMake's vcpkg_installed cache in build dirs
-**/vcpkg_installed/
+# Ignore external dependencies
+external/
 
 # Compiled object files
 *.o
