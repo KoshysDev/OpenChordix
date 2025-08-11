@@ -7,10 +7,11 @@ target_include_directories(openchordix_gui PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
+find_package(Threads REQUIRED)
+
 if (WIN32)
     find_package(SDL2 CONFIG REQUIRED)
     find_package(bgfx CONFIG REQUIRED)
-    find_package(Threads REQUIRED)
     target_compile_definitions(openchordix_gui PRIVATE BX_PLATFORM_WINDOWS=1)
 else()
     find_package(PkgConfig REQUIRED)
