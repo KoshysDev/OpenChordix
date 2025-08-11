@@ -1,10 +1,10 @@
 # OpenChordix
 
 [![GitHub repo size](https://img.shields.io/github/repo-size/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/)
-[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/linux-build)](https://github.com/KoshysDev/OpenChordix/commits/linux-build)
+[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/feature/gui)](https://github.com/KoshysDev/OpenChordix/commits/feature/gui)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-**Branch: `linux-build` (✅ Active Development Branch)**
+**Branch: `feature/gui` (✅ Active Development Branch)**
 
 **An open-source, cross-platform game/tool inspired by Rocksmith for learning guitar and bass using real-time pitch detection. Without sound detection setting up pain.**
 
@@ -12,9 +12,8 @@
 
 *   ✅ Core audio input/output using RtAudio.
 *   ✅ Runtime selection of Audio API (ALSA, Pulse, JACK, Auto).
-*   ✅ Audio device listing and input device selection.
-*   ✅ Basic audio monitoring loop (input -> output).
 *   ✅ Note and Pitch detection.
+*   🛠️ Working on: GUI
 
 ## Key Features Roadmap 🚀
 
