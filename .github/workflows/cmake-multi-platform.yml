@@ -13,90 +13,79 @@ jobs:
       matrix:
         include:
           # Windows configuration
-          # - os: windows-latest
-          #   vcpkg_triplet: x64-windows
+          - os: windows-latest
+            vcpkg_triplet: x64-windows
+            generator: Ninja
 
           # Arch Linux configuration
           - os: ubuntu-latest
             container: archlinux:latest
-            compiler: gcc
-            cpp_compiler: g++
-            os_dependencies: pacman -Syu --noconfirm && pacman -S --noconfirm base-devel cmake git rtaudio aubio alsa-lib pkgconf sdl2 bgfx
-            vcpkg_triplet: ''
+            generator: Ninja
+            os_dependencies: >
+              pacman -Syu --noconfirm &&
+              pacman -S --noconfirm
+              base-devel cmake ninja git pkgconf
+              sdl2 bgfx imgui nlohmann-json
+              rtaudio aubio ffmpeg
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
 
     defaults:
       run:
-        shell: ${{ matrix.os == 'windows-latest' && 'powershell' || 'bash' }}
+        shell: ${{ matrix.os == 'windows-latest' && 'pwsh' || 'bash' }}
 
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # --- VCPKG CACHING (Windows Only) ---
-    - name: Cache vcpkg dependencies (Windows only)
-      if: matrix.os == 'windows-latest'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ${{ env.VCPKG_ROOT }}/installed/
-          ${{ env.VCPKG_ROOT }}/packages/
-          ${{ env.VCPKG_ROOT }}/buildtrees/
-          ${{ env.VCPKG_ROOT }}/downloads/
-        key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}-${{ hashFiles('**/vcpkg-configuration.json') }}
-        restore-keys: |
-          vcpkg-${{ matrix.os }}-
+      # ---------- Windows: vcpkg setup & cache ----------
+      - name: Cache vcpkg artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.VCPKG_ROOT }}/installed/
+            ${{ env.VCPKG_ROOT }}/packages/
+            ${{ env.VCPKG_ROOT }}/buildtrees/
+            ${{ env.VCPKG_ROOT }}/downloads/
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}-${{ hashFiles('**/vcpkg-configuration.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
 
-    # --- VCPKG SETUP and INSTALL (Windows Only) ---
-    - name: Setup vcpkg and Install ALL Manifest Dependencies (Windows only)
-      if: matrix.os == 'windows-latest'
-      uses: lukka/run-vcpkg@v11.5
-      with:
-        vcpkgDirectory: ${{ env.VCPKG_ROOT }}
-        vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
-        runInstall: true
+      - name: Setup vcpkg (manifest) [Windows]
+        if: matrix.os == 'windows-latest'
+        uses: lukka/run-vcpkg@v11.5
+        with:
+          vcpkgDirectory: ${{ env.VCPKG_ROOT }}
+          vcpkgTriplet: ${{ matrix.vcpkg_triplet }}
+          runInstall: true
 
-    # --- DIAGNOSTIC STEP ---
-    - name: List Vcpkg Lib Directory (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        $libDir = Join-Path $env:VCPKG_ROOT "installed\${{ matrix.vcpkg_triplet }}\lib"
-        Write-Host "Listing contents of Release Lib dir: $libDir"
-        Get-ChildItem -Path $libDir -Filter *.lib -ErrorAction SilentlyContinue | Select-Object Name, Length
-        $debugLibDir = Join-Path $env:VCPKG_ROOT "installed\${{ matrix.vcpkg_triplet }}\debug\lib"
-        Write-Host "Listing contents of Debug Lib dir: $debugLibDir"
-        Get-ChildItem -Path $debugLibDir -Filter *.lib -ErrorAction SilentlyContinue | Select-Object Name, Length
-      continue-on-error: true # Don't fail the build if listing fails, it's just diagnostic
+      # ---------- Linux: install system deps ----------
+      - name: Install dependencies [Arch container]
+        if: matrix.os == 'ubuntu-latest' && matrix.container != ''
+        run: ${{ matrix.os_dependencies }}
 
-    # --- LINUX DEPENDENCIES ---
-    - name: Install Dependencies (Linux Container only)
-      if: matrix.os == 'ubuntu-latest' && matrix.container != ''
-      run: ${{ matrix.os_dependencies }}
+      # ---------- Configure ----------
+      - name: Configure (Windows)
+        if: matrix.os == 'windows-latest'
+        run: >
+          cmake -S . -B build
+          -G "${{ matrix.generator }}"
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}
 
-    # --- CMAKE CONFIGURE (Windows) ---
-    - name: Configure CMake (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        Write-Host "Running CMake configure on Windows..."
-        # Simplified CMake command - Removed SDK path logic
-        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
-              -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake `
-              -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}
+      - name: Configure (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: >
+          cmake -S . -B build
+          -G "${{ matrix.generator }}"
+          -DCMAKE_BUILD_TYPE=Release
 
-    # --- CMAKE CONFIGURE (Linux) ---
-    - name: Configure CMake (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        echo "Running CMake configure on Linux..."
-        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-              -DCMAKE_C_COMPILER=${{ matrix.compiler }}
-
-    # --- CMAKE BUILD ---
-    - name: Build
-      run: cmake --build build --config Release
+      # ---------- Build ----------
+      - name: Build
+        run: cmake --build build --config Release -- -k 0
