@@ -13,6 +13,8 @@ target_include_directories(openchordix_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
+find_package(Threads REQUIRED)
+
 if (WIN32)
     find_package(aubio CONFIG REQUIRED)
     find_package(RtAudio CONFIG REQUIRED)
