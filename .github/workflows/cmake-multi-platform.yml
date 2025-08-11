@@ -90,7 +90,14 @@ jobs:
             git clone https://aur.archlinux.org/yay-bin.git
             cd yay-bin
             makepkg -si --noconfirm --needed
-            yay -S --noconfirm --needed bgfx-git imgui-full
+
+            export YAYFLAGS="--noconfirm --needed --mflags --noconfirm"
+            yay -Syu $YAYFLAGS
+
+            # GENie is required by bgfx-git to generate the linux-* make targets
+            yay -S $YAYFLAGS genie-bin
+
+            yay -S $YAYFLAGS bgfx-git imgui-full
           '
 
       - name: Configure (Linux)
