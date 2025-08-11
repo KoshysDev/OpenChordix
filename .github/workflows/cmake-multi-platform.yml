@@ -14,8 +14,8 @@ jobs:
         include:
           # Windows configuration
           - os: windows-latest
-            generator: MinGW Makefiles
-            vcpkg_triplet: x64-mingw-dynamic
+            generator: "Visual Studio 17 2022"
+            vcpkg_triplet: x64-windows
 
           # Arch Linux configuration
           - os: ubuntu-latest
@@ -137,4 +137,4 @@ jobs:
 
       # ---------- Build (both platforms) ----------
       - name: Build
-        run: cmake --build build --config Release -- -k 0
+        run: cmake --build build --config Release
