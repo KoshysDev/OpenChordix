@@ -1,0 +1,28 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 23 },
+    "configurePresets": [
+      {
+        "name": "mingw-vcpkg",
+        "displayName": "MinGW + vcpkg (dynamic)",
+        "generator": "MinGW Makefiles",
+        "binaryDir": "${sourceDir}/build",
+        "cacheVariables": {
+          "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+          "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+          "CMAKE_CXX_COMPILER": "C:/ProgramData/mingw64/mingw64/bin/g++.exe",
+          "CMAKE_MAKE_PROGRAM": "C:/ProgramData/mingw64/mingw64/bin/mingw32-make.exe",
+          "CMAKE_BUILD_TYPE": "Release"
+        }
+      }
+    ],
+    "buildPresets": [
+      {
+        "name": "mingw-vcpkg-release",
+        "configurePreset": "mingw-vcpkg",
+        "configuration": "Release",
+        "jobs": 0
+      }
+    ]
+  }
+  
