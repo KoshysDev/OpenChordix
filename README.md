@@ -57,74 +57,107 @@ sudo pacman -S rtaudio aubio --needed
 ```
 
 ### Compilation
-
 ```bash
 git clone https://github.com/KoshysDev/OpenChordix.git
 cd OpenChordix
-cmake -B build -DCMAKE_BUILD_TYPE=Release # Or Debug
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-## ⚠️ Windows Build Instructions
+---
 
-> **Note:** Windows build is an annoying setup. I recommend Linux for a much smoother and minimal-hassle development setup.
+## Windows Build Instructions
+
+> TL;DR: run: .\build-windows-msvc.bat
 
 ### ✅ Requirements
 
-Make sure you have the following installed on Windows:
-
 - **[MinGW-w64 (with g++ support)](https://www.mingw-w64.org/)**
 - **[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)** (select CMake, MSBuild during installation)
-- **CMake ≥ 3.25**
+- **CMake ≥ 3.10**
 - **Git**
+- **Ninja (auto-installed by the script via winget if missing)**
 
-Ensure MinGW's `bin` directory (e.g. `C:\ProgramData\mingw64\mingw64\bin`) is in your system `PATH`.
+### One-shot build
+```bash
+git clone https://github.com/KoshysDev/OpenChordix.git
+cd OpenChordix
+.\build-windows-msvc.bat
+```
 
-### 1. Clone the project
+The script will:
+- Ensure Ninja is installed (via winget).
+- Clone & bootstrap vcpkg into external\vcpkg (if missing).
+- Enter the VS 2022 dev environment.
+- Configure with Ninja + MSVC and the vcpkg toolchain.
+- Build build-ninja\src\app\OpenChordix.exe.
+
+### Manual build (alternative)
+Open Developer PowerShell for VS 2022 (or call vcvarsall.bat amd64), then:
 
 ```bash
 git clone https://github.com/KoshysDev/OpenChordix.git
 cd OpenChordix
 ```
 
-### 2. Get vcpkg (if not already installed)
-If you don't have vcpkg installed, clone it inside the project:
 ```bash
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-bootstrap-vcpkg.bat
+$env:VCPKG_ROOT = "$PWD\external\vcpkg"
+if (!(Test-Path $env:VCPKG_ROOT)) {
+  git clone https://github.com/microsoft/vcpkg.git external/vcpkg
+  & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
+}
 ```
 
-### 3. Install dependencies via vcpkg
 ```bash
-vcpkg install rtaudio:x64-mingw-dynamic aubio:x64-mingw-dynamic
-cd ..
+$ninja = (Get-Command ninja).Source
+cmake -G Ninja -S . -B build-ninja `
+  -D CMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+  -D VCPKG_TARGET_TRIPLET=x64-windows `
+  -D CMAKE_MAKE_PROGRAM="$ninja"
+cmake --build build-ninja
 ```
 
-### 4. Build the project
-You can build manually:
+#### MSVC flags note (bgfx/bx)
+CMake will inject these automatically via top-level CMake, but if you tweak flags, keep:
+- /Zc:__cplusplus and /Zc:preprocessor
+- Consider /permissive- and /bigobj for large translation units.
+
+---
+
+## Optional: Windows (MinGW community triplet)
+
+MinGW works but is more fragile. If you need it:
+
+- Install MSYS2 with MinGW-w64 and make sure C:\msys64\mingw64\bin is first on PATH in a non-VS shell.
+- Use the provided CMakePresets.json preset mingw-vcpkg (community triplet x64-mingw-dynamic).
+
 ```bash
-mkdir build
-
-cmake -S . -B build -G "MinGW Makefiles" ^
-  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake ^
-  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic ^
-  -DCMAKE_CXX_COMPILER=C:/ProgramData/mingw64/mingw64/bin/g++.exe
-
-cmake --build build --config Release
+$env:PATH = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;$env:PATH"
+cmake --preset mingw-vcpkg
+cmake --build --preset mingw-vcpkg-release
 ```
 
-Or just run the build.bat:
-```bash
-./build.bat
-```
-This script will:
-- Configure the project with MinGW and vcpkg
-- Build it using CMake
+---
+
+## Troubleshooting
+
+- CMake can’t find compiler on Windows  
+  Use a VS dev shell or run vcvarsall.bat amd64.
+
+- bgfx/bx errors about MSVC flags  
+  Ensure /Zc:__cplusplus and /Zc:preprocessor are present (the project sets them).
+
+- vcpkg ports failing with LOCATION policy error (yasm)  
+  Use newer vcpkg or (temporary) add  
+  -D CMAKE_POLICY_DEFAULT_CMP0026=OLD to VCPKG_CMAKE_CONFIGURE_OPTIONS.
+
+---
 
 ## Contributing ❤️
 
 Contributions, bug reports, and feature suggestions are welcome! Please open an issue or submit a pull request.
+
+---
 
 ## License 📜
 
