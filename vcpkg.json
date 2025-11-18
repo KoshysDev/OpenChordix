@@ -3,8 +3,7 @@
   "version-string": "0.1.0",
   "dependencies": [
     "rtaudio",
-    "aubio", 
+    "aubio",
     "pkgconf"
-  ],
-  "builtin-baseline": "41f90cc7b84116517b01f729af17fc735e9cd821"
+  ]
 }
