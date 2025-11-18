@@ -97,6 +97,10 @@ jobs:
                 -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
                 -DCMAKE_C_COMPILER=${{ matrix.compiler }}
 
+      # --- CMAKE BUILD ---
+      - name: Build
+        run: cmake --build build --config Release
+
       - name: Upload binaries
         if: github.ref == 'refs/heads/master'
         uses: actions/upload-artifact@v4
@@ -104,7 +108,3 @@ jobs:
           name: openchordix-${{ matrix.os }}
           path: |
             build/bin/*
-
-      # --- CMAKE BUILD ---
-      - name: Build
-        run: cmake --build build --config Release
