@@ -8,6 +8,7 @@ target_include_directories(OpenChordix PRIVATE
 
 target_link_libraries(OpenChordix PRIVATE
     openchordix_core
+    openchordix_renderer
 )
 
 message(STATUS "App CMake: Configured OpenChordix executable")

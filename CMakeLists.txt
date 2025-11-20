@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19.8)
 project(OpenChordix VERSION 0.2 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 message(STATUS "Top-Level: Finding External Dependencies...")
@@ -30,11 +30,11 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
     # Find aubio via pkg-config if find_package didn't find it
     if(NOT aubio_FOUND AND NOT TARGET aubio::aubio)
-         message(STATUS "Top-Level: aubio not found via find_package. Trying pkg-config...")
-         pkg_check_modules(AUBIO_PC REQUIRED aubio)
-         if(NOT AUBIO_PC_FOUND)
+        message(STATUS "Top-Level: aubio not found via find_package. Trying pkg-config...")
+        pkg_check_modules(AUBIO_PC REQUIRED aubio)
+        if(NOT AUBIO_PC_FOUND)
             message(FATAL_ERROR "aubio could not be found using find_package or pkg-config.")
-         endif()
+        endif()
     endif()
 
 elseif(NOT rtaudio_FOUND OR NOT aubio_FOUND)
@@ -45,8 +45,9 @@ endif()
 
 message(STATUS "Top-Level: Adding subdirectories...")
 
-# --- ubdirectories ---
+# --- subdirectories ---
 add_subdirectory(src/core)
+add_subdirectory(src/graphics)
 add_subdirectory(src/app)
 
 message(STATUS "Top-Level: Finished processing.")
@@ -76,14 +77,14 @@ if(TARGET RtAudio::rtaudio)
     message(STATUS "Top-Level: Found RtAudio includes (via target): ${RTAUDIO_INCLUDE_DIRS}")
     message(STATUS "Top-Level: Found RtAudio link libraries (via target): ${RTAUDIO_LINK_LIBRARIES}")
 elseif(RTAUDIO_PC_FOUND)
-   message(STATUS "Top-Level: Found RtAudio includes (via pkg-config): ${RTAUDIO_PC_INCLUDE_DIRS}")
-   message(STATUS "Top-Level: Found RtAudio libraries (via pkg-config): ${RTAUDIO_PC_LIBRARIES}")
-   if(ALSA_PC_FOUND)
-       message(STATUS "Top-Level: Found ALSA includes (via pkg-config): ${ALSA_PC_INCLUDE_DIRS}")
-       message(STATUS "Top-Level: Found ALSA libraries (via pkg-config): ${ALSA_PC_LIBRARIES}")
-   endif()
+    message(STATUS "Top-Level: Found RtAudio includes (via pkg-config): ${RTAUDIO_PC_INCLUDE_DIRS}")
+    message(STATUS "Top-Level: Found RtAudio libraries (via pkg-config): ${RTAUDIO_PC_LIBRARIES}")
+    if(ALSA_PC_FOUND)
+        message(STATUS "Top-Level: Found ALSA includes (via pkg-config): ${ALSA_PC_INCLUDE_DIRS}")
+        message(STATUS "Top-Level: Found ALSA libraries (via pkg-config): ${ALSA_PC_LIBRARIES}")
+    endif()
 elseif(rtaudio_FOUND)
-   message(STATUS "Top-Level: Found RtAudio via find_package (no target): Includes='${rtaudio_INCLUDE_DIRS}', Libs='${rtaudio_LIBRARIES}'")
+    message(STATUS "Top-Level: Found RtAudio via find_package (no target): Includes='${rtaudio_INCLUDE_DIRS}', Libs='${rtaudio_LIBRARIES}'")
 else()
     message(WARNING "Top-Level: RtAudio not found.")
 endif()

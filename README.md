@@ -53,7 +53,13 @@ The project aims to implement the following major features incrementally:
 sudo pacman -Syu base-devel cmake git
 
 # Install RtAudio and AUBIO libraries
-sudo pacman -S rtaudio aubio --needed
+sudo pacman -S rtaudio aubio glfw-x11 --needed
+
+# Build bgfx/bx/bimg (used from external/) with the bgfx makefile
+# Example (from project root):
+# make -C external/bgfx CONFIG=Debug
+# make -C external/bgfx CONFIG=Release
+# make -C external/bgfx tools
 ```
 
 ### Compilation
@@ -91,14 +97,7 @@ cd OpenChordix
 If you don't have vcpkg installed, clone it inside the project:
 ```bash
 git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-bootstrap-vcpkg.bat
-```
-
-### 3. Install dependencies via vcpkg
-```bash
-vcpkg install rtaudio:x64-mingw-dynamic aubio:x64-mingw-dynamic
-cd ..
+cd vcpkg/bootstrap-vcpkg.bat
 ```
 
 ### 4. Build the project

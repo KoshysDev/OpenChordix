@@ -7,10 +7,15 @@ CMakeFiles/
 cmake_install.cmake
 compile_commands.json # Often generated in build dir, useful locally but not usually committed
 
+# Includes
+/vcpkg/*
+/vcpkg_installed/
+
+# Build
 build/
 /build/
 
-# Out-of-source build directories (if you use different names)
+# Out-of-source build directories
 /[Bb]uild*/
 /[Oo]ut*/
 /[Bb]in/

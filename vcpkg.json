@@ -1,9 +1,10 @@
 {
   "name": "openchordix",
-  "version-string": "0.1.0",
+  "version-string": "0.2",
   "dependencies": [
     "rtaudio",
     "aubio",
-    "pkgconf"
+    "pkgconf",
+    "bgfx"
   ]
 }
