@@ -1,6 +1,10 @@
 #include "GraphicsContext.h"
 
 #include <iostream>
+#include <array>
+#include <system_error>
+#include <vector>
+#include <optional>
 
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #define GLFW_EXPOSE_NATIVE_X11
@@ -11,6 +15,48 @@
 #include <X11/Xlib.h>
 #endif
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
+namespace
+{
+    std::filesystem::path executableDir()
+    {
+#ifdef _WIN32
+        wchar_t buffer[MAX_PATH];
+        DWORD length = GetModuleFileNameW(nullptr, buffer, static_cast<DWORD>(std::size(buffer)));
+        if (length == 0 || length == std::size(buffer))
+        {
+            return {};
+        }
+        return std::filesystem::path(buffer).parent_path();
+#else
+        std::error_code ec;
+        const auto exePath = std::filesystem::read_symlink("/proc/self/exe", ec);
+        if (ec)
+        {
+            return {};
+        }
+        return exePath.parent_path();
+#endif
+    }
+
+    void scrollCallback(GLFWwindow *window, double /*xoffset*/, double yoffset)
+    {
+        auto *ctx = static_cast<GraphicsContext *>(glfwGetWindowUserPointer(window));
+        if (ctx)
+        {
+            ctx->addScrollDelta(static_cast<float>(yoffset));
+        }
+    }
+}
+
 GraphicsContext::GraphicsContext()
 {
     rendererConfig_.clearColor = 0x11141cff;
@@ -19,15 +65,6 @@ GraphicsContext::GraphicsContext()
 GraphicsContext::~GraphicsContext()
 {
     shutdown();
-}
-
-static void scrollCallback(GLFWwindow *window, double /*xoffset*/, double yoffset)
-{
-    auto *ctx = static_cast<GraphicsContext *>(glfwGetWindowUserPointer(window));
-    if (ctx)
-    {
-        ctx->addScrollDelta(static_cast<float>(yoffset));
-    }
 }
 
 bool GraphicsContext::initializeWindowed(const char *title)
@@ -60,6 +97,14 @@ bool GraphicsContext::initializeWindowed(const char *title)
     {
         return false;
     }
+
+    if (const auto iconPath = findIconPath(); !iconPath.empty())
+    {
+        setWindowIcon(iconPath);
+    }
+
+    setWindowClassHint();
+
     if (monitor && mode)
     {
         glfwSetWindowMonitor(window_, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
@@ -104,6 +149,88 @@ void GraphicsContext::updateNativeHandles()
         rendererConfig_.nativeDisplayType = xDisplay;
         rendererConfig_.nativeWindowHandle = (void *)(uintptr_t)xWindow;
         rendererConfig_.nativeHandleType = bgfx::NativeWindowHandleType::Default;
+    }
+#endif
+}
+
+std::filesystem::path GraphicsContext::findIconPath() const
+{
+    const char *iconNames[] = {"AppIcon.png", "AppIcon.ico"};
+    std::vector<std::filesystem::path> candidates;
+
+    const auto exeDir = executableDir();
+    if (!exeDir.empty())
+    {
+        for (const auto *name : iconNames)
+        {
+            candidates.emplace_back(exeDir / name);
+            candidates.emplace_back(exeDir / "assets/icons" / name);
+        }
+    }
+
+    for (const auto *name : iconNames)
+    {
+        candidates.emplace_back(std::filesystem::current_path() / name);
+        candidates.emplace_back(std::filesystem::current_path() / "assets/icons" / name);
+    }
+
+#ifdef OPENCHORDIX_APP_ICON_PNG_PATH
+    candidates.emplace_back(std::filesystem::path{OPENCHORDIX_APP_ICON_PNG_PATH});
+#endif
+#ifdef OPENCHORDIX_APP_ICON_ICO_PATH
+    candidates.emplace_back(std::filesystem::path{OPENCHORDIX_APP_ICON_ICO_PATH});
+#endif
+
+    for (const auto &candidate : candidates)
+    {
+        std::error_code ec;
+        if (!candidate.empty() && std::filesystem::exists(candidate, ec))
+        {
+            return candidate;
+        }
+    }
+
+    return {};
+}
+
+bool GraphicsContext::setWindowIcon(const std::filesystem::path &iconPath)
+{
+    if (!window_)
+    {
+        return false;
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc *pixels = stbi_load(iconPath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels)
+    {
+        std::cerr << "Failed to load icon from " << iconPath << std::endl;
+        return false;
+    }
+
+    GLFWimage image{};
+    image.width = width;
+    image.height = height;
+    image.pixels = pixels;
+
+    glfwSetWindowIcon(window_, 1, &image);
+    stbi_image_free(pixels);
+    return true;
+}
+
+void GraphicsContext::setWindowClassHint()
+{
+#if defined(GLFW_EXPOSE_NATIVE_X11)
+    Display *display = glfwGetX11Display();
+    Window xWindow = glfwGetX11Window(window_);
+    if (display && xWindow)
+    {
+        XClassHint classHint;
+        classHint.res_name = const_cast<char *>("OpenChordix");
+        classHint.res_class = const_cast<char *>("OpenChordix");
+        XSetClassHint(display, xWindow, &classHint);
     }
 #endif
 }

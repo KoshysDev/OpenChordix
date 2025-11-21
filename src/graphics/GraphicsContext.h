@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
+#include <filesystem>
 
 #include "Renderer.h"
 
@@ -36,6 +37,9 @@ public:
 
 private:
     void updateNativeHandles();
+    void setWindowClassHint();
+    std::filesystem::path findIconPath() const;
+    bool setWindowIcon(const std::filesystem::path &iconPath);
 
     GLFWwindow *window_{nullptr};
     openchordix::Renderer renderer_{};
