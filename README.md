@@ -1,10 +1,10 @@
 # OpenChordix
 
 [![GitHub repo size](https://img.shields.io/github/repo-size/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/)
-[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/feature/gui)](https://github.com/KoshysDev/OpenChordix/commits/feature/gui)
+[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/bgfx)](https://github.com/KoshysDev/OpenChordix/commits/bgfx)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-**Branch: `feature/gui` (✅ Active Development Branch)**
+**Branch: `bgfx` (✅ Active Development Branch)**
 
 **An open-source, cross-platform game/tool inspired by Rocksmith for learning guitar and bass using real-time pitch detection. Without sound detection setting up pain.**
 

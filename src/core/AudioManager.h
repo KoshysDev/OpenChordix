@@ -32,6 +32,7 @@ public:
     // --- Device Info / Listing ---
     bool listDevices() const;
     static std::vector<RtAudio::Api> getAvailableApis();
+    std::vector<unsigned int> getDeviceIds() const;
     RtAudio::DeviceInfo getDeviceInfo(unsigned int deviceId) const;
 
     // --- Stream Management ---

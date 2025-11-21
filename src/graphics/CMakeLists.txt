@@ -1,16 +1,21 @@
+set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)
+set(BX_DIR ${BGFX_ROOT}/bx)
+set(BIMG_DIR ${BGFX_ROOT}/bimg)
+set(BGFX_DIR ${BGFX_ROOT}/bgfx)
+
 add_library(openchordix_renderer STATIC
     Renderer.cpp
+    ${BGFX_DIR}/examples/common/imgui/imgui.cpp
+    ${BGFX_DIR}/3rdparty/dear-imgui/imgui.cpp
+    ${BGFX_DIR}/3rdparty/dear-imgui/imgui_draw.cpp
+    ${BGFX_DIR}/3rdparty/dear-imgui/imgui_widgets.cpp
+    ${BGFX_DIR}/3rdparty/dear-imgui/imgui_tables.cpp
+    ${BGFX_DIR}/3rdparty/dear-imgui/imgui_demo.cpp
 )
 
 target_include_directories(openchordix_renderer PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
-
-# Paths to bx/bimg/bgfx sources (relative to project root)
-set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)
-set(BX_DIR ${BGFX_ROOT}/bx)
-set(BIMG_DIR ${BGFX_ROOT}/bimg)
-set(BGFX_DIR ${BGFX_ROOT}/bgfx)
 
 # Headers for bgfx stack
 target_include_directories(openchordix_renderer PRIVATE
@@ -19,6 +24,12 @@ target_include_directories(openchordix_renderer PRIVATE
     ${BIMG_DIR}/include
     ${BGFX_DIR}/3rdparty
     ${BGFX_DIR}/examples/common
+)
+
+target_compile_definitions(openchordix_renderer PRIVATE
+    USE_ENTRY=0
+    $<$<CONFIG:Debug>:BX_CONFIG_DEBUG=1>
+    $<$<NOT:$<CONFIG:Debug>>:BX_CONFIG_DEBUG=0>
 )
 
 if(WIN32)
@@ -41,8 +52,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         ${BGFX_LIB_DIR}/libbimgDebug.a
         ${BGFX_LIB_DIR}/libbxDebug.a
         ${BGFX_LIB_DIR}/libbimg_decodeDebug.a
-        ${BGFX_LIB_DIR}/libexample-commonDebug.a
-        ${BGFX_LIB_DIR}/libexample-glueDebug.a
     )
 else()
     set(BGFX_LIBS
@@ -50,8 +59,6 @@ else()
         ${BGFX_LIB_DIR}/libbimgRelease.a
         ${BGFX_LIB_DIR}/libbxRelease.a
         ${BGFX_LIB_DIR}/libbimg_decodeRelease.a
-        ${BGFX_LIB_DIR}/libexample-commonRelease.a
-        ${BGFX_LIB_DIR}/libexample-glueRelease.a
     )
 endif()
 

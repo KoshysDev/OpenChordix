@@ -51,4 +51,4 @@ namespace openchordix
         RendererConfig config_{};
     };
 
-} // namespace openchordix
+}

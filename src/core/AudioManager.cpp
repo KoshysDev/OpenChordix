@@ -65,6 +65,25 @@ std::vector<RtAudio::Api> AudioManager::getAvailableApis()
     return apis;
 }
 
+std::vector<unsigned int> AudioManager::getDeviceIds() const
+{
+    if (!audio_)
+    {
+        AudioManager::defaultErrorCallback(RTAUDIO_INVALID_USE, "getDeviceIds called on uninitialized AudioManager (null audio pointer).");
+        return {};
+    }
+
+    try
+    {
+        return audio_->getDeviceIds();
+    }
+    catch (const std::exception &e)
+    {
+        AudioManager::defaultErrorCallback(RTAUDIO_SYSTEM_ERROR, "Exception during getDeviceIds(): " + std::string(e.what()));
+        return {};
+    }
+}
+
 // --- Device Listing Method Implementation ---
 bool AudioManager::listDevices() const
 {
