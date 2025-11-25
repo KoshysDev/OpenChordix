@@ -4,10 +4,12 @@
 #include <optional>
 #include <string>
 #include <memory>
+#include <utility>
 
 #include <rtaudio/RtAudio.h>
 
 #include "AudioManager.h"
+#include "AudioConfig.h"
 #include "NoteConverter.h"
 
 struct PitchState
@@ -37,7 +39,12 @@ public:
     std::optional<unsigned int> selectedOutputDevice() const { return selectedOutputDevice_; }
     void selectInputDevice(unsigned int id);
     void selectOutputDevice(unsigned int id);
+    bool trySelectInputDevice(unsigned int id);
+    bool trySelectOutputDevice(unsigned int id);
+    bool applyConfig(const AudioConfig &config);
+    AudioConfig currentConfig() const;
     std::string status() const { return status_; }
+    void setStatus(std::string message) { status_ = std::move(message); }
     bool monitoring() const { return monitoring_; }
     unsigned int sampleRate() const { return sampleRate_; }
     unsigned int bufferFrames() const { return bufferFrames_; }

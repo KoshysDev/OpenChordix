@@ -199,3 +199,55 @@ void AudioSession::selectOutputDevice(unsigned int id)
 {
     selectedOutputDevice_ = id;
 }
+
+bool AudioSession::trySelectInputDevice(unsigned int id)
+{
+    auto it = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                           { return entry.id == id && entry.info.inputChannels > 0; });
+    if (it != devices_.end())
+    {
+        selectInputDevice(id);
+        return true;
+    }
+    return false;
+}
+
+bool AudioSession::trySelectOutputDevice(unsigned int id)
+{
+    auto it = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                           { return entry.id == id && entry.info.outputChannels > 0; });
+    if (it != devices_.end())
+    {
+        selectOutputDevice(id);
+        return true;
+    }
+    return false;
+}
+
+bool AudioSession::applyConfig(const AudioConfig &config)
+{
+    if (config.sampleRate > 0)
+    {
+        setSampleRate(config.sampleRate);
+    }
+    if (config.bufferFrames > 0)
+    {
+        setBufferFrames(config.bufferFrames);
+    }
+
+    bool inputOk = config.inputDeviceId != 0 && trySelectInputDevice(config.inputDeviceId);
+    bool outputOk = config.outputDeviceId != 0 && trySelectOutputDevice(config.outputDeviceId);
+
+    return inputOk && outputOk && config.isUsable();
+}
+
+AudioConfig AudioSession::currentConfig() const
+{
+    AudioConfig config{};
+    config.api = api_;
+    config.inputDeviceId = selectedInputDevice_.value_or(0);
+    config.outputDeviceId = selectedOutputDevice_.value_or(0);
+    config.sampleRate = sampleRate_;
+    config.bufferFrames = bufferFrames_;
+    return config;
+}

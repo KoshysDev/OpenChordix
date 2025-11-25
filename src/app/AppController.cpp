@@ -6,6 +6,7 @@
 #include <limits>
 #include <sstream>
 #include <algorithm>
+#include <optional>
 
 #include <imgui/imgui.h>
 
@@ -270,14 +271,57 @@ void AppController::configureImGuiStyle()
 
 int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
 {
-    audio_.refreshDevices(apis_.front());
+    std::optional<AudioConfig> savedConfig = configStore_.loadAudioConfig();
+    RtAudio::Api initialApi = apis_.front();
+    bool configApiSupported = false;
+    if (savedConfig)
+    {
+        auto apiIt = std::find(apis_.begin(), apis_.end(), savedConfig->api);
+        if (apiIt != apis_.end())
+        {
+            initialApi = savedConfig->api;
+            configApiSupported = true;
+        }
+    }
+    if (savedConfig && !configApiSupported)
+    {
+        savedConfig.reset();
+    }
+
+    audio_.setApi(initialApi);
+    audio_.refreshDevices(initialApi);
+
+    bool useSetupScene = true;
+    if (savedConfig)
+    {
+        bool configApplied = audio_.applyConfig(*savedConfig);
+        if (configApplied && savedConfig->isUsable())
+        {
+            if (audio_.startMonitoring())
+            {
+                useSetupScene = false;
+            }
+            else
+            {
+                audio_.setStatus("Failed to start with saved audio config. Please reconfigure.");
+                audio_.stopMonitoring(false);
+            }
+        }
+        else
+        {
+            audio_.setStatus("Saved audio config does not match available devices.");
+        }
+    }
 
     imguiCreate(20.0f);
     configureImGuiStyle();
 
     std::vector<std::unique_ptr<Scene>> scenes;
     scenes.emplace_back(std::make_unique<IntroScene>());
-    scenes.emplace_back(std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_));
+    if (useSetupScene)
+    {
+        scenes.emplace_back(std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_));
+    }
     scenes.emplace_back(std::make_unique<MainMenuScene>(ui_));
 
     size_t currentIndex = 0;
@@ -290,6 +334,7 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
         lastClock = now;
         dt = std::clamp(dt, 0.0f, 0.1f);
 
+        audio_.updatePitch(noteConverter_);
         ui_.beginFrame(dt);
         FrameInput input = gfx_.pollFrame();
 
@@ -309,6 +354,15 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
             scenes[currentIndex]->render(dt, input, gfx_, quitFlag);
             if (scenes[currentIndex]->finished() && currentIndex + 1 < scenes.size())
             {
+                bool wasAudioSetup = dynamic_cast<AudioSetupScene *>(scenes[currentIndex].get()) != nullptr;
+                if (wasAudioSetup)
+                {
+                    AudioConfig config = audio_.currentConfig();
+                    if (config.isUsable())
+                    {
+                        configStore_.saveAudioConfig(config);
+                    }
+                }
                 currentIndex++;
             }
         }

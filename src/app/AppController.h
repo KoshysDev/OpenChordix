@@ -8,6 +8,7 @@
 #include "AudioSession.h"
 #include "NoteConverter.h"
 #include "AnimatedUI.h"
+#include "ConfigStore.h"
 
 class AppController
 {
@@ -22,6 +23,7 @@ private:
 
     GraphicsContext gfx_;
     AudioSession audio_;
+    ConfigStore configStore_{};
     NoteConverter noteConverter_{};
     AnimatedUI ui_{};
     std::vector<RtAudio::Api> apis_;
