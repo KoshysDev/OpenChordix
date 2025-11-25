@@ -246,7 +246,7 @@ int AudioManager::monitoringCallback(void *outputBuffer, void *inputBuffer, unsi
 }
 
 // --- Stream Management Implementations ---
-bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int sampleRate, unsigned int bufferFrames)
+bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int outputDeviceId, unsigned int sampleRate, unsigned int bufferFrames)
 {
     if (!audio_)
     {
@@ -259,23 +259,15 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
         return false;
     }
 
-    // --- Get Device Info ---
-    RtAudio::DeviceInfo inputInfo;
-    RtAudio::DeviceInfo outputInfo;
-    unsigned int outputDeviceId = 0;
-    try
+    if (outputDeviceId == 0)
     {
-        inputInfo = getDeviceInfo(inputDeviceId);
-        outputDeviceId = getDefaultOutputDeviceId();
-        if (outputDeviceId == 0)
-            throw std::runtime_error("No default output device found.");
-        outputInfo = getDeviceInfo(outputDeviceId);
-    }
-    catch (const std::runtime_error &e)
-    {
-        defaultErrorCallback(RTAUDIO_INVALID_DEVICE, "Failed to get device info for stream setup: " + std::string(e.what()));
+        defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "No output device specified.");
         return false;
     }
+
+    // --- Get Device Info ---
+    RtAudio::DeviceInfo inputInfo = getDeviceInfo(inputDeviceId);
+    RtAudio::DeviceInfo outputInfo = getDeviceInfo(outputDeviceId);
     if (inputInfo.inputChannels == 0)
     {
         defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Selected input device (ID: " + std::to_string(inputDeviceId) + ") has no input channels.");
@@ -283,7 +275,7 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
     }
     if (outputInfo.outputChannels == 0)
     {
-        defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Default output device (ID: " + std::to_string(outputDeviceId) + ") has no output channels.");
+        defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Selected output device (ID: " + std::to_string(outputDeviceId) + ") has no output channels.");
         return false;
     }
 
@@ -319,6 +311,7 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
 
     // --- Open the RtAudio Stream ---
     std::cout << "Attempting to open RtAudio stream: SR=" << streamSampleRate_ << " Buf=" << requestedBufferFrames
+              << " Input Device=" << inputDeviceId << " Output Device=" << outputDeviceId
               << " Input Ch=" << streamInputChannels_ << " Output Ch=" << streamOutputChannels_ << std::endl;
     RtAudioErrorType result = RTAUDIO_NO_ERROR;
     try

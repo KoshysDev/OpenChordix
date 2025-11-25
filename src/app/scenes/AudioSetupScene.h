@@ -13,7 +13,8 @@ public:
     bool finished() const override { return finished_; }
 
 private:
-    void drawDeviceList();
+    void drawInputDeviceList();
+    void drawOutputDeviceList();
 
     AudioSession &audio_;
     NoteConverter &noteConverter_;

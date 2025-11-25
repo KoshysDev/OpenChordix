@@ -33,8 +33,10 @@ public:
     void updatePitch(NoteConverter &noteConverter);
 
     const std::vector<DeviceEntry> &devices() const { return devices_; }
-    std::optional<unsigned int> selectedDevice() const { return selectedDevice_; }
-    void selectDevice(unsigned int id);
+    std::optional<unsigned int> selectedInputDevice() const { return selectedInputDevice_; }
+    std::optional<unsigned int> selectedOutputDevice() const { return selectedOutputDevice_; }
+    void selectInputDevice(unsigned int id);
+    void selectOutputDevice(unsigned int id);
     std::string status() const { return status_; }
     bool monitoring() const { return monitoring_; }
     unsigned int sampleRate() const { return sampleRate_; }
@@ -50,7 +52,8 @@ public:
 private:
     std::unique_ptr<AudioManager> manager_;
     std::vector<DeviceEntry> devices_;
-    std::optional<unsigned int> selectedDevice_;
+    std::optional<unsigned int> selectedInputDevice_;
+    std::optional<unsigned int> selectedOutputDevice_;
     RtAudio::Api api_ = RtAudio::Api::UNSPECIFIED;
     unsigned int sampleRate_ = 48000;
     unsigned int bufferFrames_ = 1024;

@@ -123,10 +123,74 @@ int AppController::runConsoleFlow(std::atomic<bool> &quitFlag)
             return 1;
         }
 
+        unsigned int outputDeviceId = manager.getDefaultOutputDeviceId();
+        bool validOutputDevice = false;
+
+        if (outputDeviceId != 0)
+        {
+            try
+            {
+                RtAudio::DeviceInfo info = manager.getDeviceInfo(outputDeviceId);
+                if (info.outputChannels > 0)
+                {
+                    std::cout << "Using default output device: " << info.name << " (ID: " << outputDeviceId << ")" << std::endl;
+                    validOutputDevice = true;
+                }
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error validating default output device: " << e.what() << std::endl;
+            }
+        }
+
+        while (!validOutputDevice)
+        {
+            std::cout << "\nEnter the Device ID of the OUTPUT device you want to use: ";
+            std::cin >> outputDeviceId;
+
+            if (std::cin.fail())
+            {
+                std::cerr << "Invalid input. Please enter a number." << std::endl;
+                std::cin.clear();
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                continue;
+            }
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+            try
+            {
+                RtAudio::DeviceInfo info = manager.getDeviceInfo(outputDeviceId);
+                if (info.name.empty() && info.inputChannels == 0 && info.outputChannels == 0)
+                {
+                    std::cerr << "Device ID " << outputDeviceId << " not found or invalid." << std::endl;
+                }
+                else if (info.outputChannels == 0)
+                {
+                    std::cerr << "Device ID " << outputDeviceId << " (" << info.name << ") has no output channels." << std::endl;
+                }
+                else
+                {
+                    std::cout << "Selected output device: " << info.name << " (ID: " << outputDeviceId << ")" << std::endl;
+                    validOutputDevice = true;
+                }
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error validating device ID: " << e.what() << std::endl;
+                return 1;
+            }
+        }
+
+        if (!validOutputDevice)
+        {
+            std::cerr << "No valid output device available; audio will be disabled for this run." << std::endl;
+            return 1;
+        }
+
         unsigned int sampleRate = 48000;
         unsigned int bufferFrames = manager.getCurrentApi() == RtAudio::Api::UNIX_JACK ? 0 : 1024;
 
-        if (manager.openMonitoringStream(inputDeviceId, sampleRate, bufferFrames))
+        if (manager.openMonitoringStream(inputDeviceId, outputDeviceId, sampleRate, bufferFrames))
         {
             if (manager.startStream())
             {

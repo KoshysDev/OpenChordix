@@ -9,7 +9,7 @@ AudioSetupScene::AudioSetupScene(AudioSession &audio, NoteConverter &noteConvert
 {
 }
 
-void AudioSetupScene::drawDeviceList()
+void AudioSetupScene::drawInputDeviceList()
 {
     const auto &deviceEntries = audio_.devices();
     if (deviceEntries.empty())
@@ -18,7 +18,7 @@ void AudioSetupScene::drawDeviceList()
         return;
     }
 
-    ImGui::BeginChild("device_list", ImVec2(0, 230), true);
+    ImGui::BeginChild("input_device_list", ImVec2(0, 230), true);
     for (const auto &entry : deviceEntries)
     {
         const bool disabled = entry.info.inputChannels == 0;
@@ -29,14 +29,47 @@ void AudioSetupScene::drawDeviceList()
         {
             row << "  (default)";
         }
-        bool selected = audio_.selectedDevice().has_value() && *audio_.selectedDevice() == entry.id;
+        bool selected = audio_.selectedInputDevice().has_value() && *audio_.selectedInputDevice() == entry.id;
         if (ImGui::Selectable(row.str().c_str(), selected))
         {
-            audio_.selectDevice(entry.id);
+            audio_.selectInputDevice(entry.id);
             audio_.stopMonitoring(false);
         }
         ImGui::SameLine();
         ImGui::TextDisabled("%uch in / %uch out", entry.info.inputChannels, entry.info.outputChannels);
+        ImGui::EndDisabled();
+    }
+    ImGui::EndChild();
+}
+
+void AudioSetupScene::drawOutputDeviceList()
+{
+    const auto &deviceEntries = audio_.devices();
+    if (deviceEntries.empty())
+    {
+        ImGui::TextDisabled("No devices reported by this API.");
+        return;
+    }
+
+    ImGui::BeginChild("output_device_list", ImVec2(0, 230), true);
+    for (const auto &entry : deviceEntries)
+    {
+        const bool disabled = entry.info.outputChannels == 0;
+        ImGui::BeginDisabled(disabled);
+        std::ostringstream row;
+        row << "#" << entry.id << "  " << entry.info.name;
+        if (entry.info.isDefaultOutput)
+        {
+            row << "  (default)";
+        }
+        bool selected = audio_.selectedOutputDevice().has_value() && *audio_.selectedOutputDevice() == entry.id;
+        if (ImGui::Selectable(row.str().c_str(), selected))
+        {
+            audio_.selectOutputDevice(entry.id);
+            audio_.stopMonitoring(false);
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("%uch out", entry.info.outputChannels);
         ImGui::EndDisabled();
     }
     ImGui::EndChild();
@@ -97,7 +130,11 @@ void AudioSetupScene::render(float dt, const FrameInput & /*input*/, GraphicsCon
         ImGui::TextDisabled("Pick audio API.");
 
         ImGui::SeparatorText("Input Device");
-        drawDeviceList();
+        drawInputDeviceList();
+
+        ImGui::SeparatorText("Output Device");
+        ImGui::TextDisabled("Pick where the monitored signal should be sent.");
+        drawOutputDeviceList();
 
         int sr = static_cast<int>(audio_.sampleRate());
         std::string srLabel = std::to_string(sr) + " Hz";

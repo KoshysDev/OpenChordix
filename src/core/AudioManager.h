@@ -37,6 +37,7 @@ public:
 
     // --- Stream Management ---
     bool openMonitoringStream(unsigned int inputDeviceId,
+                              unsigned int outputDeviceId,
                               unsigned int sampleRate = 44100,
                               unsigned int bufferFrames = 256);
     bool startStream();

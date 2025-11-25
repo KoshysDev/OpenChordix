@@ -19,7 +19,8 @@ void AudioSession::refreshDevices(RtAudio::Api api)
 {
     stopMonitoring(false);
     devices_.clear();
-    selectedDevice_.reset();
+    selectedInputDevice_.reset();
+    selectedOutputDevice_.reset();
     status_.clear();
     api_ = api;
 
@@ -40,11 +41,13 @@ void AudioSession::refreshDevices(RtAudio::Api api)
     }
 
     unsigned int defaultInput = manager_->getDefaultInputDeviceId();
-    auto preferDefault = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
-                                      { return entry.id == defaultInput && entry.info.inputChannels > 0; });
-    if (preferDefault != devices_.end())
+    unsigned int defaultOutput = manager_->getDefaultOutputDeviceId();
+
+    auto preferDefaultInput = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                                           { return entry.id == defaultInput && entry.info.inputChannels > 0; });
+    if (preferDefaultInput != devices_.end())
     {
-        selectedDevice_ = preferDefault->id;
+        selectedInputDevice_ = preferDefaultInput->id;
     }
     else
     {
@@ -52,7 +55,23 @@ void AudioSession::refreshDevices(RtAudio::Api api)
                                        { return entry.info.inputChannels > 0; });
         if (firstInput != devices_.end())
         {
-            selectedDevice_ = firstInput->id;
+            selectedInputDevice_ = firstInput->id;
+        }
+    }
+
+    auto preferDefaultOutput = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                                            { return entry.id == defaultOutput && entry.info.outputChannels > 0; });
+    if (preferDefaultOutput != devices_.end())
+    {
+        selectedOutputDevice_ = preferDefaultOutput->id;
+    }
+    else
+    {
+        auto firstOutput = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                                        { return entry.info.outputChannels > 0; });
+        if (firstOutput != devices_.end())
+        {
+            selectedOutputDevice_ = firstOutput->id;
         }
     }
 
@@ -60,14 +79,23 @@ void AudioSession::refreshDevices(RtAudio::Api api)
     {
         status_ = "No audio devices found for this API.";
     }
-    else if (!selectedDevice_.has_value())
+    else if (!selectedInputDevice_.has_value() && !selectedOutputDevice_.has_value())
+    {
+        status_ = "No input- or output-capable device detected.";
+    }
+    else if (!selectedInputDevice_.has_value())
     {
         status_ = "No input-capable device detected.";
     }
+    else if (!selectedOutputDevice_.has_value())
+    {
+        status_ = "No output-capable device detected.";
+    }
     else
     {
-        RtAudio::DeviceInfo info = manager_->getDeviceInfo(*selectedDevice_);
-        status_ = "Ready. Default input: " + info.name;
+        RtAudio::DeviceInfo inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
+        RtAudio::DeviceInfo outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
+        status_ = "Ready. Input: " + inputInfo.name + " / Output: " + outputInfo.name;
     }
 }
 
@@ -78,16 +106,28 @@ bool AudioSession::startMonitoring()
         status_ = "Audio stack is not ready.";
         return false;
     }
-    if (!selectedDevice_.has_value())
+    if (!selectedInputDevice_.has_value())
     {
         status_ = "Pick an input device first.";
         return false;
     }
 
-    RtAudio::DeviceInfo info = manager_->getDeviceInfo(*selectedDevice_);
-    if (info.inputChannels == 0)
+    if (!selectedOutputDevice_.has_value())
+    {
+        status_ = "Pick an output device first.";
+        return false;
+    }
+
+    RtAudio::DeviceInfo inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
+    RtAudio::DeviceInfo outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
+    if (inputInfo.inputChannels == 0)
     {
         status_ = "Selected device has no input channels.";
+        return false;
+    }
+    if (outputInfo.outputChannels == 0)
+    {
+        status_ = "Selected output has no output channels.";
         return false;
     }
 
@@ -97,7 +137,7 @@ bool AudioSession::startMonitoring()
         requestedBuffer = 0;
     }
 
-    if (!manager_->openMonitoringStream(*selectedDevice_, sampleRate_, requestedBuffer))
+    if (!manager_->openMonitoringStream(*selectedInputDevice_, *selectedOutputDevice_, sampleRate_, requestedBuffer))
     {
         status_ = "Failed to open the audio stream.";
         return false;
@@ -109,7 +149,7 @@ bool AudioSession::startMonitoring()
         return false;
     }
 
-    status_ = "Monitoring " + info.name;
+    status_ = "Monitoring " + inputInfo.name + " -> " + outputInfo.name;
     monitoring_ = true;
     return true;
 }
@@ -150,7 +190,12 @@ void AudioSession::updatePitch(NoteConverter &noteConverter)
     }
 }
 
-void AudioSession::selectDevice(unsigned int id)
+void AudioSession::selectInputDevice(unsigned int id)
 {
-    selectedDevice_ = id;
+    selectedInputDevice_ = id;
+}
+
+void AudioSession::selectOutputDevice(unsigned int id)
+{
+    selectedOutputDevice_ = id;
 }
