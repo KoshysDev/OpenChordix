@@ -212,7 +212,7 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
     configureImGuiStyle();
 
     std::vector<std::unique_ptr<Scene>> scenes;
-    scenes.emplace_back(std::make_unique<IntroScene>(1.2f));
+    scenes.emplace_back(std::make_unique<IntroScene>());
     scenes.emplace_back(std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_));
     scenes.emplace_back(std::make_unique<MainMenuScene>());
 
@@ -255,6 +255,7 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
     }
 
     audio_.stopMonitoring(false);
+    scenes.clear();
     imguiDestroy();
     gfx_.shutdown();
     return 0;
