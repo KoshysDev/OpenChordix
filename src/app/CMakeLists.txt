@@ -30,6 +30,8 @@ target_include_directories(OpenChordix PRIVATE
 target_compile_definitions(OpenChordix PRIVATE
     $<$<CONFIG:Debug>:BX_CONFIG_DEBUG=1>
     $<$<NOT:$<CONFIG:Debug>>:BX_CONFIG_DEBUG=0>
+    OPENCHORDIX_VERSION="${PROJECT_VERSION}"
+    OPENCHORDIX_OS="${CMAKE_SYSTEM_NAME}"
 )
 
 set(APP_ICON_DIR ${CMAKE_SOURCE_DIR}/assets/icons)

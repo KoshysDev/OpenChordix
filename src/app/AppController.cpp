@@ -214,7 +214,7 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
     std::vector<std::unique_ptr<Scene>> scenes;
     scenes.emplace_back(std::make_unique<IntroScene>());
     scenes.emplace_back(std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_));
-    scenes.emplace_back(std::make_unique<MainMenuScene>());
+    scenes.emplace_back(std::make_unique<MainMenuScene>(ui_));
 
     size_t currentIndex = 0;
     auto lastClock = std::chrono::steady_clock::now();
@@ -226,6 +226,7 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
         lastClock = now;
         dt = std::clamp(dt, 0.0f, 0.1f);
 
+        ui_.beginFrame(dt);
         FrameInput input = gfx_.pollFrame();
 
         gfx_.renderer().beginFrame(gfx_.config().viewId);
