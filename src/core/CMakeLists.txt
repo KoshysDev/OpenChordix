@@ -1,6 +1,9 @@
 add_library(openchordix_core STATIC
     AudioManager.cpp
     AudioManager.h
+    AudioConfig.h
+    ConfigStore.cpp
+    ConfigStore.h
     NoteConverter.cpp
     NoteConverter.h
     PitchDetector.cpp

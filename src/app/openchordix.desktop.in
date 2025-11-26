@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=OpenChordix
+Comment=An open-source, cross-platform game/tool inspired by Rocksmith for learning guitar and bass using real-time pitch detection.
+Exec=@OPENCHORDIX_DESKTOP_EXEC@
+Icon=@OPENCHORDIX_DESKTOP_ICON@
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;

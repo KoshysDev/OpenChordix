@@ -32,10 +32,12 @@ public:
     // --- Device Info / Listing ---
     bool listDevices() const;
     static std::vector<RtAudio::Api> getAvailableApis();
+    std::vector<unsigned int> getDeviceIds() const;
     RtAudio::DeviceInfo getDeviceInfo(unsigned int deviceId) const;
 
     // --- Stream Management ---
     bool openMonitoringStream(unsigned int inputDeviceId,
+                              unsigned int outputDeviceId,
                               unsigned int sampleRate = 44100,
                               unsigned int bufferFrames = 256);
     bool startStream();
