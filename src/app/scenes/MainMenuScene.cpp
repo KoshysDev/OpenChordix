@@ -59,8 +59,7 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Tuner", buttonSize))
         {
-            popupMessage = "Tuner is not implemented yet.";
-            ImGui::OpenPopup("feature_missing");
+            pendingAction_ = Action::OpenTuner;
         }
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Settings", buttonSize))

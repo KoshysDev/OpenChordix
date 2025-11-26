@@ -7,6 +7,7 @@ add_executable(OpenChordix
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp
     scenes/MainMenuScene.cpp
+    scenes/TunerScene.cpp
 )
 
 set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)

@@ -13,6 +13,7 @@
 #include "IntroScene.h"
 #include "AudioSetupScene.h"
 #include "MainMenuScene.h"
+#include "TunerScene.h"
 #include "Scene.h"
 
 AppController::AppController(const std::vector<RtAudio::Api> &apis)
@@ -316,19 +317,50 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
     imguiCreate(20.0f);
     configureImGuiStyle();
 
-    std::vector<std::unique_ptr<Scene>> scenes;
-    scenes.emplace_back(std::make_unique<IntroScene>());
-    if (useSetupScene)
+    enum class SceneId
     {
-        scenes.emplace_back(std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_));
-    }
-    scenes.emplace_back(std::make_unique<MainMenuScene>(ui_));
+        Intro,
+        AudioSetup,
+        MainMenu,
+        Tuner
+    };
 
-    size_t currentIndex = 0;
+    auto makeScene = [&](SceneId id) -> std::unique_ptr<Scene>
+    {
+        switch (id)
+        {
+        case SceneId::Intro:
+            return std::make_unique<IntroScene>();
+        case SceneId::AudioSetup:
+            return std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_);
+        case SceneId::MainMenu:
+            return std::make_unique<MainMenuScene>(ui_);
+        case SceneId::Tuner:
+            return std::make_unique<TunerScene>(audio_, ui_);
+        }
+        return nullptr;
+    };
+
+    SceneId sceneId = SceneId::Intro;
+    std::unique_ptr<Scene> currentScene = makeScene(sceneId);
+    auto switchTo = [&](SceneId id)
+    {
+        sceneId = id;
+        currentScene = makeScene(id);
+    };
+
+    SceneId afterIntro = useSetupScene ? SceneId::AudioSetup : SceneId::MainMenu;
+    SceneId afterAudio = SceneId::MainMenu;
+
     auto lastClock = std::chrono::steady_clock::now();
 
     while (!quitFlag.load() && !gfx_.shouldClose())
     {
+        if (!currentScene)
+        {
+            break;
+        }
+
         auto now = std::chrono::steady_clock::now();
         float dt = std::chrono::duration<float>(now - lastClock).count();
         lastClock = now;
@@ -349,21 +381,38 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
             -1,
             gfx_.config().viewId);
 
-        if (currentIndex < scenes.size())
+        currentScene->render(dt, input, gfx_, quitFlag);
+
+        if (sceneId == SceneId::MainMenu)
         {
-            scenes[currentIndex]->render(dt, input, gfx_, quitFlag);
-            if (scenes[currentIndex]->finished() && currentIndex + 1 < scenes.size())
+            if (auto *menu = dynamic_cast<MainMenuScene *>(currentScene.get()))
             {
-                bool wasAudioSetup = dynamic_cast<AudioSetupScene *>(scenes[currentIndex].get()) != nullptr;
-                if (wasAudioSetup)
+                MainMenuScene::Action action = menu->consumeAction();
+                if (action == MainMenuScene::Action::OpenTuner)
                 {
-                    AudioConfig config = audio_.currentConfig();
-                    if (config.isUsable())
-                    {
-                        configStore_.saveAudioConfig(config);
-                    }
+                    switchTo(SceneId::Tuner);
                 }
-                currentIndex++;
+            }
+        }
+
+        if (currentScene && currentScene->finished())
+        {
+            if (sceneId == SceneId::Intro)
+            {
+                switchTo(afterIntro);
+            }
+            else if (sceneId == SceneId::AudioSetup)
+            {
+                AudioConfig config = audio_.currentConfig();
+                if (config.isUsable())
+                {
+                    configStore_.saveAudioConfig(config);
+                }
+                switchTo(afterAudio);
+            }
+            else if (sceneId == SceneId::Tuner)
+            {
+                switchTo(SceneId::MainMenu);
             }
         }
 
@@ -374,7 +423,6 @@ int AppController::runGraphicsFlow(std::atomic<bool> &quitFlag)
     }
 
     audio_.stopMonitoring(false);
-    scenes.clear();
     imguiDestroy();
     gfx_.shutdown();
     return 0;
