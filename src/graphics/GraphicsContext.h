@@ -29,9 +29,12 @@ public:
 
     FrameInput pollFrame();
     void addScrollDelta(float delta) { scrollDelta_ += delta; }
+    void applyResize(uint32_t width, uint32_t height);
+    void syncFramebufferSize(int fallbackWidth = 0, int fallbackHeight = 0);
     bool shouldClose() const;
 
     GLFWwindow *window() const { return window_; }
+    GLFWmonitor *currentMonitor() const;
     const openchordix::RendererConfig &config() const { return rendererConfig_; }
     openchordix::Renderer &renderer() { return renderer_; }
 

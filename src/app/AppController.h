@@ -17,10 +17,6 @@ public:
     int run(std::atomic<bool> &quitFlag);
 
 private:
-    void configureImGuiStyle();
-    int runConsoleFlow(std::atomic<bool> &quitFlag);
-    int runGraphicsFlow(std::atomic<bool> &quitFlag);
-
     GraphicsContext gfx_;
     AudioSession audio_;
     ConfigStore configStore_{};

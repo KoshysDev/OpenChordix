@@ -2,7 +2,6 @@
 
 #include <imgui/imgui.h>
 #include <algorithm>
-#include <cfloat>
 
 #ifndef OPENCHORDIX_VERSION
 #define OPENCHORDIX_VERSION "0.0"
@@ -20,10 +19,13 @@
 #endif
 #endif
 
+MainMenuScene::MainMenuScene(AnimatedUI &ui)
+    : ui_(ui), featureModal_(ModalDialog::info("feature_missing", "Feature not ready", {"This feature is not implemented yet."}))
+{
+}
+
 void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsContext & /*gfx*/, std::atomic<bool> &quitFlag)
 {
-    static const char *popupMessage = nullptr;
-
     ImVec2 screen = ImGui::GetIO().DisplaySize;
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(screen, ImGuiCond_Always);
@@ -53,8 +55,7 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         ImVec2 buttonSize(contentWidth, buttonHeight);
         if (ui_.button("Play", buttonSize))
         {
-            popupMessage = "Play mode is not implemented yet.";
-            ImGui::OpenPopup("feature_missing");
+            featureModal_.open();
         }
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Tuner", buttonSize))
@@ -64,8 +65,7 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Settings", buttonSize))
         {
-            popupMessage = "Settings are not implemented yet.";
-            ImGui::OpenPopup("feature_missing");
+            pendingAction_ = Action::OpenSettings;
         }
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Quit", buttonSize))
@@ -75,22 +75,7 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
 
         ImGui::EndGroup();
 
-        if (popupMessage)
-        {
-            ImGui::SetNextWindowPos(ImVec2(screen.x * 0.5f, screen.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-            ImGui::SetNextWindowSizeConstraints(ImVec2(360.0f, 0.0f), ImVec2(480.0f, FLT_MAX));
-        }
-        if (ImGui::BeginPopup("feature_missing"))
-        {
-            ImGui::TextWrapped("%s", popupMessage);
-            ImGui::Spacing();
-            if (ImGui::Button("OK", ImVec2(200.0f, 48.0f)))
-            {
-                ImGui::CloseCurrentPopup();
-                popupMessage = nullptr;
-            }
-            ImGui::EndPopup();
-        }
+        featureModal_.draw(ImVec2(360.0f, 0.0f));
     }
     ImGui::End();
 

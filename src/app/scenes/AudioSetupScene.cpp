@@ -3,6 +3,10 @@
 #include <imgui/imgui.h>
 #include <sstream>
 #include <algorithm>
+#include <array>
+
+#include "ui/DeviceSelector.h"
+#include "ui/UILayout.h"
 
 AudioSetupScene::AudioSetupScene(AudioSession &audio, NoteConverter &noteConverter, AnimatedUI &ui)
     : audio_(audio), noteConverter_(noteConverter), ui_(ui)
@@ -11,68 +15,20 @@ AudioSetupScene::AudioSetupScene(AudioSession &audio, NoteConverter &noteConvert
 
 void AudioSetupScene::drawInputDeviceList()
 {
-    const auto &deviceEntries = audio_.devices();
-    if (deviceEntries.empty())
-    {
-        ImGui::TextDisabled("No devices reported by this API.");
-        return;
-    }
-
-    ImGui::BeginChild("input_device_list", ImVec2(0, 230), true);
-    for (const auto &entry : deviceEntries)
-    {
-        const bool disabled = entry.info.inputChannels == 0;
-        ImGui::BeginDisabled(disabled);
-        std::ostringstream row;
-        row << "#" << entry.id << "  " << entry.info.name;
-        if (entry.info.isDefaultInput)
-        {
-            row << "  (default)";
-        }
-        bool selected = audio_.selectedInputDevice().has_value() && *audio_.selectedInputDevice() == entry.id;
-        if (ImGui::Selectable(row.str().c_str(), selected))
-        {
-            audio_.selectInputDevice(entry.id);
-            audio_.stopMonitoring(false);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("%uch in / %uch out", entry.info.inputChannels, entry.info.outputChannels);
-        ImGui::EndDisabled();
-    }
-    ImGui::EndChild();
+    auto options = DeviceSelector::makeOptions(audio_.devices(), DeviceRole::Input, audio_.selectedInputDevice());
+    DeviceSelector::list("input_device_list", options, DeviceRole::Input, [&](unsigned int id)
+                         {
+                             audio_.selectInputDevice(id);
+                             audio_.stopMonitoring(false); }, ImVec2(0, 230));
 }
 
 void AudioSetupScene::drawOutputDeviceList()
 {
-    const auto &deviceEntries = audio_.devices();
-    if (deviceEntries.empty())
-    {
-        ImGui::TextDisabled("No devices reported by this API.");
-        return;
-    }
-
-    ImGui::BeginChild("output_device_list", ImVec2(0, 230), true);
-    for (const auto &entry : deviceEntries)
-    {
-        const bool disabled = entry.info.outputChannels == 0;
-        ImGui::BeginDisabled(disabled);
-        std::ostringstream row;
-        row << "#" << entry.id << "  " << entry.info.name;
-        if (entry.info.isDefaultOutput)
-        {
-            row << "  (default)";
-        }
-        bool selected = audio_.selectedOutputDevice().has_value() && *audio_.selectedOutputDevice() == entry.id;
-        if (ImGui::Selectable(row.str().c_str(), selected))
-        {
-            audio_.selectOutputDevice(entry.id);
-            audio_.stopMonitoring(false);
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("%uch out", entry.info.outputChannels);
-        ImGui::EndDisabled();
-    }
-    ImGui::EndChild();
+    auto options = DeviceSelector::makeOptions(audio_.devices(), DeviceRole::Output, audio_.selectedOutputDevice());
+    DeviceSelector::list("output_device_list", options, DeviceRole::Output, [&](unsigned int id)
+                         {
+                             audio_.selectOutputDevice(id);
+                             audio_.stopMonitoring(false); }, ImVec2(0, 230));
 }
 
 void AudioSetupScene::render(float dt, const FrameInput & /*input*/, GraphicsContext &gfx, std::atomic<bool> & /*quitFlag*/)
@@ -80,24 +36,16 @@ void AudioSetupScene::render(float dt, const FrameInput & /*input*/, GraphicsCon
     audio_.updatePitch(noteConverter_);
 
     const ImVec4 accent = ImVec4(0.35f, 0.73f, 0.98f, 1.0f);
-    ImVec2 screen = ImGui::GetIO().DisplaySize;
-    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(screen, ImGuiCond_Always);
-    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    const std::array<ImVec4, 4> bg = {
+        ImVec4(0.06f, 0.07f, 0.10f, 1.0f),
+        ImVec4(0.08f, 0.10f, 0.14f, 1.0f),
+        ImVec4(0.05f, 0.05f, 0.08f, 1.0f),
+        ImVec4(0.04f, 0.05f, 0.07f, 1.0f)};
 
-    if (ImGui::Begin("OpenChordix Setup", nullptr, windowFlags))
+    PanelLayout panel = UILayout::beginFullscreen("OpenChordix Setup", "content_panel", 36.0f, bg);
+    if (panel.windowOpen)
     {
-        ImDrawList *bg = ImGui::GetBackgroundDrawList();
-        bg->AddRectFilledMultiColor(ImVec2(0, 0), screen,
-                                    ImGui::ColorConvertFloat4ToU32(ImVec4(0.06f, 0.07f, 0.10f, 1.0f)),
-                                    ImGui::ColorConvertFloat4ToU32(ImVec4(0.08f, 0.10f, 0.14f, 1.0f)),
-                                    ImGui::ColorConvertFloat4ToU32(ImVec4(0.05f, 0.05f, 0.08f, 1.0f)),
-                                    ImGui::ColorConvertFloat4ToU32(ImVec4(0.04f, 0.05f, 0.07f, 1.0f)));
-
-        const float margin = 36.0f;
-        ImGui::SetCursorPos(ImVec2(margin, margin));
-        ImVec2 panelSize = ImVec2(screen.x - margin * 2.0f, screen.y - margin * 2.0f);
-        ImGui::BeginChild("content_panel", panelSize, false);
+        ImGui::BeginChild("content_panel", panel.contentSize, false);
 
         ui_.heading("Routing setup", accent);
         ImGui::Text("Select audio device like your audio interface to monitor and use guitar input in game.");
@@ -218,5 +166,5 @@ void AudioSetupScene::render(float dt, const FrameInput & /*input*/, GraphicsCon
 
         ImGui::EndChild();
     }
-    ImGui::End();
+    UILayout::endFullscreen();
 }
