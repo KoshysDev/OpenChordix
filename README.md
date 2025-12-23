@@ -31,95 +31,91 @@ The project aims to implement the following major features incrementally:
 
 ## Technology Stack 🛠️
 
-*   **Core Language:** C++ (C++17 or later)
-*   **Build System:** CMake
-*   **Real-time Audio:** RtAudio
-*   **Graphics/Windowing:** BGFX
+*   **Core Language:** C++20
+*   **Build System:** CMake (>= 3.19.8)
+*   **Dependency Manager:** vcpkg
+*   **Real-time Audio:** RtAudio (6.x)
+*   **Pitch Detection:** Aubio (0.4.x)
+*   **Graphics/Windowing:** BGFX (1.129.x) + GLFW (3.4)
 *   **UI:** Dear ImGui
-*   **Pitch Detection:** Aubio
+*   **Image Loading:** stb
 
 ## Platform Support 💻
 
 *   🐧 **Linux:** Primary Target
-*   ⊞ **Windows:** Working just fine
+*   ⊞ **Windows:** In progress
 *   🍎 **macOS:** Contributions welcome (No current development plans)
 
 ## Building 🏗️
 
-### Dependencies (Linux - Arch Example)
-
-```bash
-# Install essential tools if needed
-sudo pacman -Syu base-devel cmake git
-
-# Install RtAudio and AUBIO libraries
-sudo pacman -S rtaudio aubio glfw-x11 --needed
-
-# Build bgfx/bx/bimg (used from external/) with the bgfx makefile
-# Example (from project root):
-# make -C external/bgfx CONFIG=Debug
-# make -C external/bgfx CONFIG=Release
-# make -C external/bgfx tools
-```
-
-### Compilation
+### Linux setup + build
 
 ```bash
 git clone https://github.com/KoshysDev/OpenChordix.git
 cd OpenChordix
-cmake -B build -DCMAKE_BUILD_TYPE=Release # Or Debug
-cmake --build build
+chmod +x linux-build-setup.sh
+./linux-build-setup.sh
 ```
 
-## ⚠️ Windows Build Instructions
+### Linux manual setup + build
 
-> **Note:** Windows build is an annoying setup. I recommend Linux for a much smoother and minimal-hassle development setup.
+#### 1) Install system packages
 
-### ✅ Requirements
+Arch (example):
+```bash
+sudo pacman -Syu --needed base-devel cmake git pkgconf \
+  alsa-lib libxinerama libxcursor libxrandr libxkbcommon \
+  xorg-server-devel mesa
+```
 
-Make sure you have the following installed on Windows:
+Ubuntu/Debian (example):
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake git pkg-config \
+  libasound2-dev libxinerama-dev libxcursor-dev libxrandr-dev \
+  libxkbcommon-dev xorg-dev libglu1-mesa-dev
+```
 
-- **[MinGW-w64 (with g++ support)](https://www.mingw-w64.org/)**
-- **[Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)** (select CMake, MSBuild during installation)
-- **CMake ≥ 3.25**
-- **Git**
-
-Ensure MinGW's `bin` directory (e.g. `C:\ProgramData\mingw64\mingw64\bin`) is in your system `PATH`.
-
-### 1. Clone the project
-
+#### 2) Clone the project
 ```bash
 git clone https://github.com/KoshysDev/OpenChordix.git
 cd OpenChordix
 ```
 
-### 2. Get vcpkg (if not already installed)
-If you don't have vcpkg installed, clone it inside the project:
+#### 3) Fetch bgfx/bx/bimg sources
 ```bash
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg/bootstrap-vcpkg.bat
+git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
+git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
+git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
 ```
 
-### 4. Build the project
-You can build manually:
+#### 4) Bootstrap vcpkg and install deps
 ```bash
-mkdir build
-
-cmake -S . -B build -G "MinGW Makefiles" ^
-  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake ^
-  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic ^
-  -DCMAKE_CXX_COMPILER=C:/ProgramData/mingw64/mingw64/bin/g++.exe
-
-cmake --build build --config Release
+git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+VCPKG_DISABLE_METRICS=1 ./vcpkg/bootstrap-vcpkg.sh
+VCPKG_DISABLE_METRICS=1 ./vcpkg/vcpkg install
 ```
 
-Or just run the build.bat:
+#### 5) Build bgfx (Release)
 ```bash
-./build.bat
+make -C external/bgfx linux-gcc-release64 -j$(nproc)
 ```
-This script will:
-- Configure the project with MinGW and vcpkg
-- Build it using CMake
+
+#### 6) Configure + build
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build -j$(nproc)
+```
+
+#### Output
+```bash
+./build/src/app/OpenChordix
+```
+
+### Windows
+
+Windows setup is in progress. If you want to help test or document it, open an issue.
 
 ## Contributing ❤️
 
