@@ -7,7 +7,9 @@
 
 #include "DisplayManager.h"
 
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
 #include <imgui/imgui.h>
@@ -274,7 +276,7 @@ bool GraphicsContext::initializeWindowed(const char *title)
 
 void GraphicsContext::updateNativeHandles()
 {
-#if defined(GLFW_EXPOSE_NATIVE_WAYLAND)
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
     void *wlDisplay = glfwGetWaylandDisplay();
     void *wlSurface = glfwGetWaylandWindow(window_);
     if (wlDisplay && wlSurface)
