@@ -174,7 +174,15 @@ bool GraphicsContext::initializeWindowed(const char *title)
 
     if (hasWayland)
     {
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
         glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+#else
+        if (hasX11)
+        {
+            // Prefer X11 on Wayland when Wayland native handles are not enabled.
+            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+        }
+#endif
     }
     else if (hasX11)
     {
