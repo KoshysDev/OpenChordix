@@ -121,6 +121,21 @@ Windows setup is in progress. If you want to help test or document it, open an i
 
 Contributions, bug reports, and feature suggestions are welcome! Please open an issue or submit a pull request.
 
+## Known Issues / Bugs
+
+- **BGFX on Hyprland (Wayland)**  
+  BGFX may fail to start a native window session under Hyprland.
+
+  **Workaround:** build with Wayland support enabled:
+
+  ```sh
+  cmake -B build -DCMAKE_BUILD_TYPE=Release \
+    -DOPENCHORDIX_ENABLE_WAYLAND=ON \
+    -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+
+  cmake --build build -j$(nproc)
+ ```
+
 ## License 📜
 
 This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for details.
