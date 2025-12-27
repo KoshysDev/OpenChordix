@@ -134,7 +134,6 @@ Contributions, bug reports, and feature suggestions are welcome! Please open an 
     -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 
   cmake --build build -j$(nproc)
- ```
 
 ## License 📜
 
