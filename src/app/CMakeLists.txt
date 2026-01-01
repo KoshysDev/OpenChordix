@@ -1,13 +1,23 @@
 add_executable(OpenChordix
     main.cpp
     AppController.cpp
+    console/ConsoleFlow.cpp
+    console/ConsolePrompter.cpp
+    GraphicsFlow.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsContext.cpp
+    ${CMAKE_SOURCE_DIR}/src/graphics/DisplayManager.cpp
     ${CMAKE_SOURCE_DIR}/src/core/AudioSession.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/AnimatedUI.cpp
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp
     scenes/MainMenuScene.cpp
+    scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
+    settings/GraphicsConfig.cpp
+    settings/DisplaySettingsController.cpp
+    ui/ModalDialog.cpp
+    ui/DeviceSelector.cpp
+    ui/UILayout.cpp
 )
 
 set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)

@@ -5,6 +5,7 @@
     "rtaudio",
     "aubio",
     "pkgconf",
-    "bgfx"
+    "bgfx",
+    "glfw3"
   ]
 }

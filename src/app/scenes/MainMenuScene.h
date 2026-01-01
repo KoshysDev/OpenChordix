@@ -2,6 +2,7 @@
 
 #include "Scene.h"
 #include "AnimatedUI.h"
+#include "ui/ModalDialog.h"
 
 class MainMenuScene : public Scene
 {
@@ -9,10 +10,11 @@ public:
     enum class Action
     {
         None,
-        OpenTuner
+        OpenTuner,
+        OpenSettings
     };
 
-    explicit MainMenuScene(AnimatedUI &ui) : ui_(ui) {}
+    explicit MainMenuScene(AnimatedUI &ui);
     void render(float dt, const FrameInput &input, GraphicsContext &gfx, std::atomic<bool> &quitFlag) override;
     bool finished() const override { return false; }
     Action consumeAction()
@@ -25,4 +27,5 @@ public:
 private:
     AnimatedUI &ui_;
     Action pendingAction_ = Action::None;
+    ModalDialog featureModal_;
 };

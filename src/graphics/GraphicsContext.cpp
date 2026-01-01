@@ -1,12 +1,15 @@
 #include "GraphicsContext.h"
 
 #include <iostream>
-#include <array>
 #include <system_error>
 #include <vector>
-#include <optional>
+#include <algorithm>
 
+#include "DisplayManager.h"
+
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
 #include <imgui/imgui.h>
@@ -54,6 +57,52 @@ namespace
             ctx->addScrollDelta(static_cast<float>(yoffset));
         }
     }
+
+#ifdef _WIN32
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((void *)-4)
+#endif
+#ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE
+#define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE ((void *)-3)
+#endif
+
+    void enableHighDpiAwareness()
+    {
+        if (HMODULE user32 = LoadLibraryW(L"user32.dll"))
+        {
+            using SetDpiAwarenessContextFn = BOOL(WINAPI *)(void *);
+            auto setDpiAwarenessContext = reinterpret_cast<SetDpiAwarenessContextFn>(
+                GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
+            if (setDpiAwarenessContext)
+            {
+                if (setDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ||
+                    setDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE))
+                {
+                    FreeLibrary(user32);
+                    return;
+                }
+            }
+            FreeLibrary(user32);
+        }
+
+        if (HMODULE shcore = LoadLibraryW(L"Shcore.dll"))
+        {
+            using SetProcessDpiAwarenessFn = HRESULT(WINAPI *)(int);
+            auto setProcessDpiAwareness = reinterpret_cast<SetProcessDpiAwarenessFn>(
+                GetProcAddress(shcore, "SetProcessDpiAwareness"));
+            if (setProcessDpiAwareness && SUCCEEDED(setProcessDpiAwareness(2)))
+            {
+                FreeLibrary(shcore);
+                return;
+            }
+            FreeLibrary(shcore);
+        }
+
+        SetProcessDPIAware();
+    }
+#else
+    void enableHighDpiAwareness() {}
+#endif
 }
 
 GraphicsContext::GraphicsContext()
@@ -66,34 +115,127 @@ GraphicsContext::~GraphicsContext()
     shutdown();
 }
 
+void GraphicsContext::syncFramebufferSize(int fallbackWidth, int fallbackHeight)
+{
+    if (!window_)
+    {
+        return;
+    }
+
+    glfwGetFramebufferSize(window_, &lastFbWidth_, &lastFbHeight_);
+    if (fallbackWidth > 0)
+    {
+        lastFbWidth_ = std::max(lastFbWidth_, fallbackWidth);
+    }
+    if (fallbackHeight > 0)
+    {
+        lastFbHeight_ = std::max(lastFbHeight_, fallbackHeight);
+    }
+    rendererConfig_.width = static_cast<uint32_t>(lastFbWidth_);
+    rendererConfig_.height = static_cast<uint32_t>(lastFbHeight_);
+}
+
+GLFWmonitor *GraphicsContext::currentMonitor() const
+{
+    if (!window_)
+    {
+        return nullptr;
+    }
+
+    GLFWmonitor *attached = glfwGetWindowMonitor(window_);
+    if (attached)
+    {
+        return attached;
+    }
+
+    return openchordix::DisplayManager::monitorForWindow(window_).handle;
+}
+
+namespace
+{
+    void logGlfwError(const char *context)
+    {
+        const char *desc = nullptr;
+        int code = glfwGetError(&desc);
+        if (code != GLFW_NO_ERROR)
+        {
+            std::cerr << "[GLFW] " << context << " failed (code " << code << "): "
+                      << (desc ? desc : "unknown error") << std::endl;
+        }
+    }
+}
+
 bool GraphicsContext::initializeWindowed(const char *title)
 {
+    enableHighDpiAwareness();
+
     const bool hasWayland = std::getenv("WAYLAND_DISPLAY") != nullptr;
     const bool hasX11 = std::getenv("DISPLAY") != nullptr;
-    if (hasWayland && hasX11)
+
+    if (hasWayland)
+    {
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+#else
+        if (hasX11)
+        {
+            // Prefer X11 on Wayland when Wayland native handles are not enabled.
+            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+        }
+#endif
+    }
+    else if (hasX11)
     {
         glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
     }
 
+    if (!glfwInit())
+    {
+        std::cerr << "GLFW init failed.\n";
+        logGlfwError("glfwInit");
+        return false;
+    }
+
+    int monitorCount = 0;
+    GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+    std::cout << "[Graphics] Monitors detected: " << monitorCount << std::endl;
+    for (int i = 0; i < monitorCount; ++i)
+    {
+        const char *name = glfwGetMonitorName(monitors[i]);
+        const GLFWvidmode *m = glfwGetVideoMode(monitors[i]);
+        int wx = 0;
+        int wy = 0;
+        int ww = 0;
+        int wh = 0;
+        glfwGetMonitorWorkarea(monitors[i], &wx, &wy, &ww, &wh);
+        std::cout << "  [" << i << "] " << (name ? name : "Unknown") << " mode "
+                  << (m ? std::to_string(m->width) + "x" + std::to_string(m->height) : "n/a")
+                  << " work " << ww << "x" << wh << " at (" << wx << "," << wy << ")" << std::endl;
+    }
+
+    glfwDefaultWindowHints();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 
-    if (!glfwInit())
-    {
-        std::cerr << "GLFW init failed.\n";
-        return false;
-    }
+    openchordix::MonitorInfo monitorInfo = openchordix::DisplayManager::bestMonitor();
+    GLFWmonitor *monitor = monitorInfo.handle;
 
-    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode *mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
-    int width = mode ? mode->width : 1280;
-    int height = mode ? mode->height : 720;
+    int monitorX = monitorInfo.x;
+    int monitorY = monitorInfo.y;
 
+    int width = mode ? mode->width : 1920;
+    int height = mode ? mode->height : 1080;
+
+    // Create a borderless window and place it on the chosen monitor
     window_ = glfwCreateWindow(width, height, title, nullptr, nullptr);
+
     if (!window_)
     {
+        logGlfwError("glfwCreateWindow");
         return false;
     }
 
@@ -106,26 +248,43 @@ bool GraphicsContext::initializeWindowed(const char *title)
 
     if (monitor && mode)
     {
-        glfwSetWindowMonitor(window_, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        glfwSetWindowAttrib(window_, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(window_, monitor, 0, 0, width, height, mode->refreshRate);
+    }
+    else
+    {
+        glfwSetWindowAttrib(window_, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowPos(window_, monitorX, monitorY);
+        glfwSetWindowSize(window_, width, height);
     }
 
     glfwSetWindowUserPointer(window_, this);
     glfwSetScrollCallback(window_, scrollCallback);
     startedWithWindow_ = true;
 
-    glfwGetFramebufferSize(window_, &lastFbWidth_, &lastFbHeight_);
-    rendererConfig_.width = static_cast<uint32_t>(lastFbWidth_);
-    rendererConfig_.height = static_cast<uint32_t>(lastFbHeight_);
+    syncFramebufferSize(width, height);
     rendererConfig_.headless = false;
     rendererConfig_.type = bgfx::RendererType::Count;
 
     updateNativeHandles();
+
+    int winX = 0;
+    int winY = 0;
+    int winW = 0;
+    int winH = 0;
+    int fbW = 0;
+    int fbH = 0;
+    glfwGetWindowPos(window_, &winX, &winY);
+    glfwGetWindowSize(window_, &winW, &winH);
+    glfwGetFramebufferSize(window_, &fbW, &fbH);
+    std::cout << "[Graphics] Created window at (" << winX << "," << winY << ") size " << winW << "x" << winH
+              << " framebuffer " << fbW << "x" << fbH << std::endl;
     return true;
 }
 
 void GraphicsContext::updateNativeHandles()
 {
-#if defined(GLFW_EXPOSE_NATIVE_WAYLAND)
+#if defined(OPENCHORDIX_ENABLE_WAYLAND)
     void *wlDisplay = glfwGetWaylandDisplay();
     void *wlSurface = glfwGetWaylandWindow(window_);
     if (wlDisplay && wlSurface)
@@ -301,4 +460,37 @@ void GraphicsContext::shutdown()
         window_ = nullptr;
     }
     glfwTerminate();
+}
+
+void GraphicsContext::applyResize(uint32_t width, uint32_t height)
+{
+    uint32_t targetW = width;
+    uint32_t targetH = height;
+
+    if (window_)
+    {
+        int fbW = 0;
+        int fbH = 0;
+        glfwGetFramebufferSize(window_, &fbW, &fbH);
+        if (fbW > 0 && fbH > 0)
+        {
+            targetW = std::max(targetW, static_cast<uint32_t>(fbW));
+            targetH = std::max(targetH, static_cast<uint32_t>(fbH));
+        }
+    }
+
+    if (rendererConfig_.width == targetW && rendererConfig_.height == targetH && renderer_.isInitialized())
+    {
+        return;
+    }
+
+    rendererConfig_.width = targetW;
+    rendererConfig_.height = targetH;
+    lastFbWidth_ = static_cast<int>(targetW);
+    lastFbHeight_ = static_cast<int>(targetH);
+
+    if (renderer_.isInitialized())
+    {
+        renderer_.resize(targetW, targetH);
+    }
 }
