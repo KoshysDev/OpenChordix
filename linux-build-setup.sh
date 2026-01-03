@@ -43,18 +43,21 @@ if command -v sudo >/dev/null 2>&1; then
   fi
 fi
 
-if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
-  git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
-fi
-if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
-  git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
-fi
-if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
-  git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
-fi
-
-if [ ! -d "vcpkg" ] || [ -z "$(ls -A vcpkg 2>/dev/null)" ]; then
-  git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+if [ -f ".gitmodules" ]; then
+  git submodule update --init --recursive
+else
+  if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
+    git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
+  fi
+  if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
+    git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
+  fi
+  if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
+    git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
+  fi
+  if [ ! -d "vcpkg" ] || [ -z "$(ls -A vcpkg 2>/dev/null)" ]; then
+    git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+  fi
 fi
 
 VCPKG_DISABLE_METRICS=1 ./vcpkg/bootstrap-vcpkg.sh

@@ -25,18 +25,6 @@ jobs:
             libasound2-dev \
             libgl1-mesa-dev xorg-dev
 
-      - name: Fetch bgfx/bx/bimg
-        run: |
-          if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
-          fi
-          if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
-          fi
-          if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
-          fi
-
       - name: Build bgfx (Release)
         run: make -C external/bgfx linux-gcc-release64 -j2
 
@@ -95,18 +83,6 @@ jobs:
             nasm yasm \
             libasound2-dev \
             libgl1-mesa-dev xorg-dev
-
-      - name: Fetch bgfx/bx/bimg
-        run: |
-          if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
-          fi
-          if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
-          fi
-          if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
-          fi
 
       - name: Build bgfx (Release)
         run: make -C external/bgfx linux-gcc-release64 -j2
