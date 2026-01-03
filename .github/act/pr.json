@@ -1,0 +1,18 @@
+{
+    "pull_request": {
+        "number": 123,
+        "base": {
+            "ref": "master"
+        },
+        "head": {
+            "ref": "some-branch"
+        }
+    },
+    "repository": {
+        "full_name": "KoshysDev/OpenChordix",
+        "owner": {
+            "login": "KoshysDev"
+        },
+        "name": "OpenChordix"
+    }
+}
