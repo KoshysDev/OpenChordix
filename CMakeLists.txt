@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(OPENCHORDIX_ENABLE_WAYLAND "Enable GLFW Wayland native handles" OFF)
+option(OPENCHORDIX_BUILD_TESTS "Build OpenChordix unit tests" ON)
+option(OPENCHORDIX_BUILD_RENDERER "Build OpenChordix renderer" ON)
+option(OPENCHORDIX_BUILD_APP "Build OpenChordix app" ON)
 
 message(STATUS "Top-Level: Finding External Dependencies...")
 
@@ -49,8 +52,20 @@ message(STATUS "Top-Level: Adding subdirectories...")
 
 # --- subdirectories ---
 add_subdirectory(src/core)
-add_subdirectory(src/graphics)
-add_subdirectory(src/app)
+if(OPENCHORDIX_BUILD_RENDERER)
+    add_subdirectory(src/graphics)
+endif()
+if(OPENCHORDIX_BUILD_APP)
+    if(NOT OPENCHORDIX_BUILD_RENDERER)
+        message(FATAL_ERROR "OPENCHORDIX_BUILD_APP requires OPENCHORDIX_BUILD_RENDERER=ON")
+    endif()
+    add_subdirectory(src/app)
+endif()
+
+if(OPENCHORDIX_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 message(STATUS "Top-Level: Finished processing.")
 
