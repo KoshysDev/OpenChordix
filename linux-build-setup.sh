@@ -23,12 +23,16 @@ need_cmd make
 
 if command -v sudo >/dev/null 2>&1; then
   if command -v pacman >/dev/null 2>&1; then
-    sudo pacman -Syu --needed base-devel cmake git pkgconf \
-      alsa-lib libxinerama libxcursor libxrandr libxinerama libxkbcommon \
+    sudo pacman -Syu --needed \
+      base-devel cmake git pkgconf \
+      nasm yasm \
+      alsa-lib libxinerama libxcursor libxrandr libxkbcommon \
       xorg-server-devel mesa
   elif command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
-    sudo apt-get install -y build-essential cmake git pkg-config \
+    sudo apt-get install -y \
+      build-essential cmake git pkg-config \
+      nasm yasm \
       libasound2-dev libxinerama-dev libxcursor-dev libxrandr-dev \
       libxkbcommon-dev xorg-dev libglu1-mesa-dev
   fi
