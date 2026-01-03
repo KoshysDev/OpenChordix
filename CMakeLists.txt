@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19.8)
-project(OpenChordix VERSION 0.2 LANGUAGES CXX)
+project(OpenChordix VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
