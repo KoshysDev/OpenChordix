@@ -2,7 +2,6 @@
 
 #include "Scene.h"
 #include "AnimatedUI.h"
-#include "ui/ModalDialog.h"
 
 class MainMenuScene : public Scene
 {
@@ -10,6 +9,7 @@ public:
     enum class Action
     {
         None,
+        OpenTrackSelect,
         OpenTuner,
         OpenSettings
     };
@@ -27,5 +27,4 @@ public:
 private:
     AnimatedUI &ui_;
     Action pendingAction_ = Action::None;
-    ModalDialog featureModal_;
 };

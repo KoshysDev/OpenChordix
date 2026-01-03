@@ -8,7 +8,7 @@
 
 #include <rtaudio/RtAudio.h>
 
-#include "AudioSession.h"
+#include "audio/AudioSession.h"
 
 enum class DeviceRole
 {

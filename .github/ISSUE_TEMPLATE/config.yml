@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the build instructions (README)
+    url: https://github.com/KoshysDev/OpenChordix
+    about: Common build/setup steps and known issues are documented there.
+  - name: Contributing guidelines
+    url: https://github.com/KoshysDev/OpenChordix/blob/master/CONTRIBUTING.md
+    about: How to contribute, coding style, and project expectations.

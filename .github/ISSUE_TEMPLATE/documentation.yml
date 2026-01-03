@@ -1,0 +1,36 @@
+name: Documentation
+description: Report unclear/missing docs (build steps, troubleshooting, usage).
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where is the doc issue?
+      description: Link to the page/section/file (README, CONTRIBUTING, etc.).
+      placeholder: "https://github.com/KoshysDev/OpenChordix"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What’s wrong / missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording or fix
+      description: If you can propose exact text, do it here.
+    validations:
+      required: false

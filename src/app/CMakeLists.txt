@@ -6,13 +6,16 @@ add_executable(OpenChordix
     GraphicsFlow.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsContext.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/DisplayManager.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/AudioSession.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/audio/AudioSession.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/AnimatedUI.cpp
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp
     scenes/MainMenuScene.cpp
+    scenes/TrackSelectScene.cpp
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/track/TrackCatalogMemory.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/score/ScoreServiceMemory.cpp
     settings/GraphicsConfig.cpp
     settings/DisplaySettingsController.cpp
     ui/ModalDialog.cpp

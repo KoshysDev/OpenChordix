@@ -11,6 +11,7 @@
 #include "IntroScene.h"
 #include "MainMenuScene.h"
 #include "SettingsScene.h"
+#include "TrackSelectScene.h"
 #include "TunerScene.h"
 
 GraphicsFlow::GraphicsFlow(GraphicsContext &gfx,
@@ -55,6 +56,8 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
         return std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_);
     case SceneId::MainMenu:
         return std::make_unique<MainMenuScene>(ui_);
+    case SceneId::TrackSelect:
+        return std::make_unique<TrackSelectScene>(ui_);
     case SceneId::Tuner:
         return std::make_unique<TunerScene>(audio_, ui_);
     case SceneId::Settings:
@@ -161,6 +164,10 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
                 {
                     switchTo(SceneId::Tuner);
                 }
+                else if (action == MainMenuScene::Action::OpenTrackSelect)
+                {
+                    switchTo(SceneId::TrackSelect);
+                }
                 else if (action == MainMenuScene::Action::OpenSettings)
                 {
                     switchTo(SceneId::Settings);
@@ -188,6 +195,10 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
                 switchTo(SceneId::MainMenu);
             }
             else if (sceneId == SceneId::Settings)
+            {
+                switchTo(SceneId::MainMenu);
+            }
+            else if (sceneId == SceneId::TrackSelect)
             {
                 switchTo(SceneId::MainMenu);
             }

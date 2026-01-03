@@ -1,0 +1,103 @@
+name: Build / Compile problem
+description: Report configuration/build/link errors (CMake/vcpkg/toolchain/compilers).
+title: "[Build]: "
+labels: ["build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Build issues are easiest to fix with full environment + exact commands.
+        Please paste the failing command and the *first* relevant error lines.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I pulled the latest changes and retried from a clean build directory.
+          required: true
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch / Commit
+      placeholder: "master @ 0123abcd"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: toolchain
+    attributes:
+      label: Compiler + version
+      placeholder: "gcc 14.x, clang 18.x, MSVC 19.xx, mingw-w64 ..."
+    validations:
+      required: true
+
+  - type: input
+    id: cmake
+    attributes:
+      label: CMake version
+      placeholder: "cmake 3.xx"
+    validations:
+      required: true
+
+  - type: input
+    id: vcpkg
+    attributes:
+      label: vcpkg info
+      description: Commit hash (if pinned) + triplet (if non-default).
+      placeholder: "vcpkg @ <hash>, triplet: x64-linux / x64-windows / ..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: configure_cmd
+    attributes:
+      label: Configure command
+      description: The exact CMake configure invocation you used.
+      render: shell
+      placeholder: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+    validations:
+      required: true
+
+  - type: textarea
+    id: build_cmd
+    attributes:
+      label: Build command
+      render: shell
+      placeholder: "cmake --build build -j$(nproc)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Full error output
+      description: Paste the relevant section (include the first error lines).
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / what you tried
+      placeholder: "Clean build dir, removed vcpkg_installed, changed triplet, etc."
+    validations:
+      required: false
