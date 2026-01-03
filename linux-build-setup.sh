@@ -10,6 +10,11 @@ else
   JOBS=4
 fi
 
+VCPKG_BINARY_CACHE_DIR="${ROOT_DIR}/vcpkg/binary_cache"
+mkdir -p "${VCPKG_BINARY_CACHE_DIR}"
+export VCPKG_DEFAULT_BINARY_CACHE="${VCPKG_BINARY_CACHE_DIR}"
+export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_BINARY_CACHE_DIR},readwrite"
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing required command: $1" >&2
