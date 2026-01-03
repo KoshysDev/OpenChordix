@@ -8,8 +8,8 @@
 
 #include <rtaudio/RtAudio.h>
 
-#include "AudioManager.h"
-#include "AudioConfig.h"
+#include "audio/AudioConfig.h"
+#include "audio/AudioManager.h"
 #include "NoteConverter.h"
 
 struct PitchState

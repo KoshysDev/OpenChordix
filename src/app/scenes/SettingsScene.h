@@ -5,7 +5,7 @@
 
 #include "Scene.h"
 #include "AnimatedUI.h"
-#include "AudioSession.h"
+#include "audio/AudioSession.h"
 #include "settings/DisplaySettingsController.h"
 #include "settings/GraphicsConfig.h"
 #include "ui/ModalDialog.h"

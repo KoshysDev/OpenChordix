@@ -4,7 +4,7 @@
 #include <string>
 
 #include "Scene.h"
-#include "AudioSession.h"
+#include "audio/AudioSession.h"
 #include "AnimatedUI.h"
 
 class TunerScene : public Scene

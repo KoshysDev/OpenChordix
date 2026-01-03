@@ -3,7 +3,7 @@
 #include <optional>
 #include <filesystem>
 
-#include "AudioConfig.h"
+#include "audio/AudioConfig.h"
 
 class ConfigStore
 {

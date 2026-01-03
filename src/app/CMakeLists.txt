@@ -6,7 +6,7 @@ add_executable(OpenChordix
     GraphicsFlow.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsContext.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/DisplayManager.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/AudioSession.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/audio/AudioSession.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/AnimatedUI.cpp
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp

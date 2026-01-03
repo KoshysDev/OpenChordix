@@ -5,7 +5,7 @@
 #include <rtaudio/RtAudio.h>
 
 #include "GraphicsContext.h"
-#include "AudioSession.h"
+#include "audio/AudioSession.h"
 #include "NoteConverter.h"
 #include "AnimatedUI.h"
 #include "ConfigStore.h"

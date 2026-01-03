@@ -7,7 +7,7 @@
 
 #include <rtaudio/RtAudio.h>
 
-#include "AudioManager.h"
+#include "audio/AudioManager.h"
 #include "NoteConverter.h"
 #include "console/ConsolePrompter.h"
 

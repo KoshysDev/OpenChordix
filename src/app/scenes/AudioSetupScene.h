@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Scene.h"
-#include "AudioSession.h"
+#include "audio/AudioSession.h"
 #include "NoteConverter.h"
 #include "AnimatedUI.h"
 
