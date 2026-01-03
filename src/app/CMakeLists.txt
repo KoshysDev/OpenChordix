@@ -11,6 +11,7 @@ add_executable(OpenChordix
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp
     scenes/MainMenuScene.cpp
+    scenes/TrackSelectScene.cpp
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
     ${CMAKE_SOURCE_DIR}/src/core/track/TrackCatalogMemory.cpp

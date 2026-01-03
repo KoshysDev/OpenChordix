@@ -31,6 +31,7 @@ private:
         Intro,
         AudioSetup,
         MainMenu,
+        TrackSelect,
         Tuner,
         Settings
     };

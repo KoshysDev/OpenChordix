@@ -20,7 +20,7 @@
 #endif
 
 MainMenuScene::MainMenuScene(AnimatedUI &ui)
-    : ui_(ui), featureModal_(ModalDialog::info("feature_missing", "Feature not ready", {"This feature is not implemented yet."}))
+    : ui_(ui)
 {
 }
 
@@ -55,7 +55,7 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         ImVec2 buttonSize(contentWidth, buttonHeight);
         if (ui_.button("Play", buttonSize))
         {
-            featureModal_.open();
+            pendingAction_ = Action::OpenTrackSelect;
         }
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Tuner", buttonSize))
@@ -75,7 +75,6 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
 
         ImGui::EndGroup();
 
-        featureModal_.draw(ImVec2(360.0f, 0.0f));
     }
     ImGui::End();
 
