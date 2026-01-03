@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest an improvement or new feature (audio, UI, gameplay, tooling).
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This is a single request (not a bundle of unrelated items).
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this solve? Who benefits?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior, UI, or API you’d like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why you prefer this one.
+    validations:
+      required: false
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / Notes
+      description: Any implementation hints, constraints, or related components (audio, pitch detection, BGFX/ImGui, etc.).
+    validations:
+      required: false

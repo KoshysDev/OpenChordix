@@ -1,0 +1,104 @@
+name: Bug report
+description: Report something that is broken at runtime (crash, incorrect behavior, audio/graphics issues, etc.).
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please include enough detail to reproduce.
+        If this is a build/compile problem, use **Build/Compile problem** instead.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I am using the active development branch (if applicable) or I’ve tested it.
+          required: false
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch / Commit
+      description: branch name and the commit hash.
+      placeholder: "master @ 0123abcd"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version / distro
+      placeholder: "Arch, Ubuntu 24.04, Windows 11 23H2, etc."
+    validations:
+      required: true
+
+  - type: input
+    id: audio_api
+    attributes:
+      label: Audio backend (if relevant)
+      description: Include what you selected.
+      placeholder: "ALSA / PulseAudio / JACK / ASIO / WASAPI / Auto / Not sure"
+    validations:
+      required: false
+
+  - type: input
+    id: gfx
+    attributes:
+      label: Graphics / Windowing (if relevant)
+      placeholder: "Wayland/X11, GPU, driver version, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps are best.
+      placeholder: |
+        1. Build with ...
+        2. Run ...
+        3. Click/Select ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console output
+      description: Paste relevant output. If large, attach a file or paste a link.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Screenshots, recordings, configs, or anything else helpful.
+    validations:
+      required: false

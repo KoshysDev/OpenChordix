@@ -1,0 +1,31 @@
+name: Question / Support
+description: Ask a question about using/building OpenChordix.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I checked the README build section and Known Issues first.
+          required: true
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do, and what’s blocking you?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: OS, branch/commit, and any commands/output relevant to your question.
+      render: shell
+    validations:
+      required: false
