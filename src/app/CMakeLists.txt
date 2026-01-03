@@ -13,6 +13,8 @@ add_executable(OpenChordix
     scenes/MainMenuScene.cpp
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/track/TrackCatalogMemory.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/score/ScoreServiceMemory.cpp
     settings/GraphicsConfig.cpp
     settings/DisplaySettingsController.cpp
     ui/ModalDialog.cpp
