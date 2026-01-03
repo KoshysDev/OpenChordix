@@ -1,0 +1,88 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-appimage:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            nasm yasm \
+            libasound2-dev \
+            libgl1-mesa-dev xorg-dev \
+            fuse
+
+      - name: Fetch bgfx/bx/bimg
+        run: |
+          git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
+          git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
+          git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
+
+      - name: Build bgfx (Release)
+        run: make -C external/bgfx linux-gcc-release64 -j2
+
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Install vcpkg dependencies
+        run: ./vcpkg/vcpkg install
+
+      - name: Configure
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build -j2
+
+      - name: Package AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp build/src/app/OpenChordix AppDir/usr/bin/OpenChordix
+          cp assets/icons/AppIcon.png AppDir/usr/share/icons/hicolor/256x256/apps/openchordix.png
+          cat > AppDir/usr/share/applications/openchordix.desktop <<'EOF'
+          [Desktop Entry]
+          Name=OpenChordix
+          Comment=OpenChordix Pitch Detection
+          Exec=OpenChordix
+          Icon=openchordix
+          Terminal=false
+          Type=Application
+          Categories=AudioVideo;Audio;
+          EOF
+          curl -L -o linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy.AppImage
+          APPIMAGE_NAME=OpenChordix ./linuxdeploy.AppImage --appdir AppDir --output appimage
+
+      - name: Upload AppImage
+        uses: softprops/action-gh-release@v2
+        with:
+          files: OpenChordix*.AppImage
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
