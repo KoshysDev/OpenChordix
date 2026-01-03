@@ -1,0 +1,149 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_FEATURE_FLAGS: manifests
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg/binary_cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            nasm yasm \
+            libasound2-dev \
+            libgl1-mesa-dev xorg-dev
+
+      - name: Fetch bgfx/bx/bimg
+        run: |
+          if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
+          fi
+          if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
+          fi
+          if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
+          fi
+
+      - name: Build bgfx (Release)
+        run: make -C external/bgfx linux-gcc-release64 -j2
+
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/binary_cache
+            vcpkg/downloads
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg_installed
+            external/bgfx
+            external/bx
+            external/bimg
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+
+      - name: Ensure vcpkg cache directory
+        run: mkdir -p vcpkg/binary_cache
+
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Install vcpkg dependencies
+        run: ./vcpkg/vcpkg install
+
+      - name: Configure
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DOPENCHORDIX_BUILD_TESTS=ON \
+            -DOPENCHORDIX_BUILD_APP=ON \
+            -DOPENCHORDIX_BUILD_RENDERER=ON \
+            -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build -j2
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitize:
+    runs-on: ubuntu-latest
+    env:
+      VCPKG_FEATURE_FLAGS: manifests
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg/binary_cache
+      ASAN_OPTIONS: detect_leaks=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            nasm yasm \
+            libasound2-dev \
+            libgl1-mesa-dev xorg-dev
+
+      - name: Fetch bgfx/bx/bimg
+        run: |
+          if [ ! -d "external/bgfx" ] || [ -z "$(ls -A external/bgfx 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bgfx.git external/bgfx
+          fi
+          if [ ! -d "external/bx" ] || [ -z "$(ls -A external/bx 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bx.git external/bx
+          fi
+          if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
+          fi
+
+      - name: Build bgfx (Release)
+        run: make -C external/bgfx linux-gcc-release64 -j2
+
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/binary_cache
+            vcpkg/downloads
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg_installed
+            external/bgfx
+            external/bx
+            external/bimg
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+
+      - name: Ensure vcpkg cache directory
+        run: mkdir -p vcpkg/binary_cache
+
+      - name: Bootstrap vcpkg
+        run: ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Install vcpkg dependencies
+        run: ./vcpkg/vcpkg install
+
+      - name: Configure (ASan/UBSan)
+        run: |
+          cmake -B build-sanitize -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DOPENCHORDIX_BUILD_TESTS=ON \
+            -DOPENCHORDIX_BUILD_APP=OFF \
+            -DOPENCHORDIX_BUILD_RENDERER=OFF \
+            -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build-sanitize -j2
+
+      - name: Test
+        run: ctest --test-dir build-sanitize --output-on-failure
