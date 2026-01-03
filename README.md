@@ -1,10 +1,8 @@
 # OpenChordix
 
 [![GitHub repo size](https://img.shields.io/github/repo-size/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/)
-[![GitHub last commit (linux-build)](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix/bgfx)](https://github.com/KoshysDev/OpenChordix/commits/bgfx)
+[![GitHub last commit](https://img.shields.io/github/last-commit/KoshysDev/OpenChordix)](https://github.com/KoshysDev/OpenChordix/commits/master)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
-**Branch: `bgfx` (✅ Active Development Branch)**
 
 **An open-source, cross-platform game/tool inspired by Rocksmith for learning guitar and bass using real-time pitch detection. Without sound detection setting up pain.**
 
@@ -64,6 +62,7 @@ chmod +x linux-build-setup.sh
 Arch (example):
 ```bash
 sudo pacman -Syu --needed base-devel cmake git pkgconf \
+  nasm yasm \
   alsa-lib libxinerama libxcursor libxrandr libxkbcommon \
   xorg-server-devel mesa
 ```
@@ -72,6 +71,7 @@ Ubuntu/Debian (example):
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential cmake git pkg-config \
+  nasm yasm \
   libasound2-dev libxinerama-dev libxcursor-dev libxrandr-dev \
   libxkbcommon-dev xorg-dev libglu1-mesa-dev
 ```
