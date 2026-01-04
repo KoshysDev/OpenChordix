@@ -1,9 +1,11 @@
 name: release-please
 
 on:
-  push:
-    branches:
-      - master
+  workflow_run:
+    workflows: ["ci"]
+    branches: [master]
+    types:
+      - completed
 
 permissions:
   contents: write
@@ -11,6 +13,7 @@ permissions:
 
 jobs:
   release-please:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -33,7 +36,20 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check system dependencies
+        id: sysdeps
+        run: |
+          missing=0
+          for pkg in build-essential cmake git pkg-config nasm yasm libasound2-dev libgl1-mesa-dev xorg-dev fuse; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+              missing=1
+              break
+            fi
+          done
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
       - name: Install system dependencies
+        if: steps.sysdeps.outputs.missing == '1'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -43,13 +59,63 @@ jobs:
             libgl1-mesa-dev xorg-dev \
             fuse
 
+      - name: Capture bgfx revisions
+        id: bgfx-revs
+        run: |
+          echo "bgfx=$(git -C external/bgfx rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "bx=$(git -C external/bx rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "bimg=$(git -C external/bimg rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache bgfx build
+        id: bgfx-cache
+        uses: actions/cache@v4
+        with:
+          path: external/bgfx/.build
+          key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs.outputs.bgfx }}-${{ steps.bgfx-revs.outputs.bx }}-${{ steps.bgfx-revs.outputs.bimg }}
+
       - name: Build bgfx (Release)
+        if: steps.bgfx-cache.outputs.cache-hit != 'true'
         run: make -C external/bgfx linux-gcc-release64 -j2
 
+      - name: Cache vcpkg artifacts
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/binary_cache
+            vcpkg/downloads
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+
+      - name: Ensure vcpkg cache directory
+        run: mkdir -p vcpkg/binary_cache
+
+      - name: Check vcpkg tool
+        id: vcpkg-tool
+        run: |
+          if [ -x vcpkg/vcpkg ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check vcpkg install
+        id: vcpkg-installed
+        run: |
+          if [ -d vcpkg_installed ] && [ -n "$(ls -A vcpkg_installed 2>/dev/null)" ]; then
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Bootstrap vcpkg
+        if: steps.vcpkg-tool.outputs.ready != 'true'
         run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Install vcpkg dependencies
+        if: steps.vcpkg-installed.outputs.installed != 'true'
         run: ./vcpkg/vcpkg install
 
       - name: Configure
