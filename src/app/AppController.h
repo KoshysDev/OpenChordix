@@ -13,7 +13,7 @@
 class AppController
 {
 public:
-    explicit AppController(const std::vector<RtAudio::Api> &apis);
+    AppController(const std::vector<RtAudio::Api> &apis, bool enableDevTools);
     int run(std::atomic<bool> &quitFlag);
 
 private:
@@ -23,4 +23,5 @@ private:
     NoteConverter noteConverter_{};
     AnimatedUI ui_{};
     std::vector<RtAudio::Api> apis_;
+    bool enableDevTools_ = false;
 };
