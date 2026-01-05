@@ -52,6 +52,7 @@ message(STATUS "Top-Level: Adding subdirectories...")
 
 # --- subdirectories ---
 add_subdirectory(src/core)
+add_subdirectory(src/devtools)
 if(OPENCHORDIX_BUILD_RENDERER)
     add_subdirectory(src/graphics)
 endif()

@@ -5,6 +5,7 @@
 #include <optional>
 #include <thread>
 
+#include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
 
 #include "AudioSetupScene.h"
@@ -13,15 +14,62 @@
 #include "SettingsScene.h"
 #include "TrackSelectScene.h"
 #include "TunerScene.h"
+#include "devtools/commands/CommandList.h"
+
+namespace
+{
+    void updateImGuiKeyboard(GLFWwindow *window, const FrameInput &input)
+    {
+        ImGuiIO &io = ImGui::GetIO();
+
+        io.AddKeyEvent(ImGuiMod_Shift, glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiMod_Ctrl, glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiMod_Alt, glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiMod_Super, glfwGetKey(window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SUPER) == GLFW_PRESS);
+
+        io.AddKeyEvent(ImGuiKey_Tab, glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_LeftArrow, glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_RightArrow, glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_UpArrow, glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_DownArrow, glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_PageUp, glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_PageDown, glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Home, glfwGetKey(window, GLFW_KEY_HOME) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_End, glfwGetKey(window, GLFW_KEY_END) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Insert, glfwGetKey(window, GLFW_KEY_INSERT) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Delete, glfwGetKey(window, GLFW_KEY_DELETE) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Backspace, glfwGetKey(window, GLFW_KEY_BACKSPACE) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Space, glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Enter, glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_KeypadEnter, glfwGetKey(window, GLFW_KEY_KP_ENTER) == GLFW_PRESS);
+        io.AddKeyEvent(ImGuiKey_Escape, glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS);
+
+        for (uint32_t codepoint : input.inputChars)
+        {
+            io.AddInputCharacter(codepoint);
+        }
+    }
+}
 
 GraphicsFlow::GraphicsFlow(GraphicsContext &gfx,
                            AudioSession &audio,
                            ConfigStore &configStore,
                            NoteConverter &noteConverter,
                            AnimatedUI &ui,
-                           const std::vector<RtAudio::Api> &apis)
-    : gfx_(gfx), audio_(audio), configStore_(configStore), noteConverter_(noteConverter), ui_(ui), apis_(apis)
+                           const std::vector<RtAudio::Api> &apis,
+                           bool enableDevTools)
+    : gfx_(gfx),
+      audio_(audio),
+      configStore_(configStore),
+      noteConverter_(noteConverter),
+      ui_(ui),
+      apis_(apis),
+      devConsole_(enableDevTools)
 {
+    if (enableDevTools)
+    {
+        openchordix::devtools::registerDefaultCommands(devConsole_.registry());
+    }
 }
 
 void GraphicsFlow::configureImGuiStyle()
@@ -68,6 +116,9 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
 
 int GraphicsFlow::run(std::atomic<bool> &quitFlag)
 {
+    devConsole_.setQuitCallback([&quitFlag]()
+                                { quitFlag.store(true); });
+
     std::optional<AudioConfig> savedConfig = configStore_.loadAudioConfig();
     RtAudio::Api initialApi = apis_.front();
     bool configApiSupported = false;
@@ -141,6 +192,8 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
         audio_.updatePitch(noteConverter_);
         ui_.beginFrame(dt);
         FrameInput input = gfx_.pollFrame();
+        updateImGuiKeyboard(gfx_.window(), input);
+        devConsole_.updateToggle(glfwGetKey(gfx_.window(), GLFW_KEY_GRAVE_ACCENT) == GLFW_PRESS);
 
         gfx_.renderer().beginFrame(gfx_.config().viewId);
         imguiBeginFrame(
@@ -154,6 +207,8 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
             gfx_.config().viewId);
 
         currentScene->render(dt, input, gfx_, quitFlag);
+
+        devConsole_.render();
 
         if (sceneId == SceneId::MainMenu)
         {

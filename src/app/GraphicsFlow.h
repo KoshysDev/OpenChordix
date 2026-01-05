@@ -12,6 +12,7 @@
 #include "GraphicsContext.h"
 #include "NoteConverter.h"
 #include "Scene.h"
+#include "devtools/DevConsole.h"
 
 class GraphicsFlow
 {
@@ -21,7 +22,8 @@ public:
                  ConfigStore &configStore,
                  NoteConverter &noteConverter,
                  AnimatedUI &ui,
-                 const std::vector<RtAudio::Api> &apis);
+                 const std::vector<RtAudio::Api> &apis,
+                 bool enableDevTools);
 
     int run(std::atomic<bool> &quitFlag);
 
@@ -45,4 +47,5 @@ private:
     NoteConverter &noteConverter_;
     AnimatedUI &ui_;
     std::vector<RtAudio::Api> apis_;
+    openchordix::devtools::DevConsole devConsole_;
 };

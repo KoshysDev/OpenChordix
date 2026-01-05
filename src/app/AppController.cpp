@@ -5,8 +5,10 @@
 #include "console/ConsoleFlow.h"
 #include "GraphicsFlow.h"
 
-AppController::AppController(const std::vector<RtAudio::Api> &apis)
-    : audio_({22050, 32000, 44100, 48000, 88200, 96000}, {64, 128, 256, 512, 1024, 2048}), apis_(apis)
+AppController::AppController(const std::vector<RtAudio::Api> &apis, bool enableDevTools)
+    : audio_({22050, 32000, 44100, 48000, 88200, 96000}, {64, 128, 256, 512, 1024, 2048}),
+      apis_(apis),
+      enableDevTools_(enableDevTools)
 {
 }
 
@@ -21,6 +23,6 @@ int AppController::run(std::atomic<bool> &quitFlag)
         return console.run(quitFlag);
     }
 
-    GraphicsFlow graphics(gfx_, audio_, configStore_, noteConverter_, ui_, apis_);
+    GraphicsFlow graphics(gfx_, audio_, configStore_, noteConverter_, ui_, apis_, enableDevTools_);
     return graphics.run(quitFlag);
 }
