@@ -5,6 +5,7 @@
 #include <optional>
 #include <thread>
 
+#include <GLFW/glfw3.h>
 #include <imgui/imgui.h>
 
 #include "AudioSetupScene.h"
@@ -13,15 +14,27 @@
 #include "SettingsScene.h"
 #include "TrackSelectScene.h"
 #include "TunerScene.h"
+#include "devtools/commands/CommandList.h"
 
 GraphicsFlow::GraphicsFlow(GraphicsContext &gfx,
                            AudioSession &audio,
                            ConfigStore &configStore,
                            NoteConverter &noteConverter,
                            AnimatedUI &ui,
-                           const std::vector<RtAudio::Api> &apis)
-    : gfx_(gfx), audio_(audio), configStore_(configStore), noteConverter_(noteConverter), ui_(ui), apis_(apis)
+                           const std::vector<RtAudio::Api> &apis,
+                           bool enableDevTools)
+    : gfx_(gfx),
+      audio_(audio),
+      configStore_(configStore),
+      noteConverter_(noteConverter),
+      ui_(ui),
+      apis_(apis),
+      devConsole_(enableDevTools)
 {
+    if (enableDevTools)
+    {
+        openchordix::devtools::registerDefaultCommands(devConsole_.registry());
+    }
 }
 
 void GraphicsFlow::configureImGuiStyle()
@@ -68,6 +81,9 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
 
 int GraphicsFlow::run(std::atomic<bool> &quitFlag)
 {
+    devConsole_.setQuitCallback([&quitFlag]()
+                                { quitFlag.store(true); });
+
     std::optional<AudioConfig> savedConfig = configStore_.loadAudioConfig();
     RtAudio::Api initialApi = apis_.front();
     bool configApiSupported = false;
@@ -141,6 +157,7 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
         audio_.updatePitch(noteConverter_);
         ui_.beginFrame(dt);
         FrameInput input = gfx_.pollFrame();
+        devConsole_.updateToggle(glfwGetKey(gfx_.window(), GLFW_KEY_GRAVE_ACCENT) == GLFW_PRESS);
 
         gfx_.renderer().beginFrame(gfx_.config().viewId);
         imguiBeginFrame(
@@ -154,6 +171,8 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
             gfx_.config().viewId);
 
         currentScene->render(dt, input, gfx_, quitFlag);
+
+        devConsole_.render();
 
         if (sceneId == SceneId::MainMenu)
         {

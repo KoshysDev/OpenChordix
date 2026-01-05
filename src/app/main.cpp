@@ -2,6 +2,7 @@
 #include <csignal>
 #include <atomic>
 #include <vector>
+#include <string_view>
 
 #include <rtaudio/RtAudio.h>
 
@@ -25,12 +26,22 @@ void signalHandler(int signal)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     std::cout << "OpenChordix" << std::endl;
     std::cout << "RtAudio Version: " << RtAudio::getVersion() << std::endl;
 
     signal(SIGINT, signalHandler);
+
+    bool enableDevTools = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string_view arg(argv[i]);
+        if (arg == "-debug" || arg == "--debug")
+        {
+            enableDevTools = true;
+        }
+    }
 
     std::vector<RtAudio::Api> apis = AudioManager::getAvailableApis();
     if (apis.empty())
@@ -39,6 +50,6 @@ int main()
         return 1;
     }
 
-    AppController app(apis);
+    AppController app(apis, enableDevTools);
     return app.run(g_quit_flag);
 }
