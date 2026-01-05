@@ -28,7 +28,6 @@
 // Suppress GCC false-positive in stb_image.
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

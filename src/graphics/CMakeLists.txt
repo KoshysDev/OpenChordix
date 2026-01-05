@@ -5,6 +5,7 @@ set(BGFX_DIR ${BGFX_ROOT}/bgfx)
 
 add_library(openchordix_renderer STATIC
     Renderer.cpp
+    assets/GltfLoader.cpp
     ${BGFX_DIR}/examples/common/imgui/imgui.cpp
     ${BGFX_DIR}/3rdparty/dear-imgui/imgui.cpp
     ${BGFX_DIR}/3rdparty/dear-imgui/imgui_draw.cpp
@@ -22,6 +23,7 @@ target_include_directories(openchordix_renderer PRIVATE
     ${BGFX_DIR}/include
     ${BX_DIR}/include
     ${BIMG_DIR}/include
+    ${BIMG_DIR}/3rdparty
     ${BGFX_DIR}/3rdparty
     ${BGFX_DIR}/examples/common
 )
@@ -31,6 +33,8 @@ target_compile_definitions(openchordix_renderer PRIVATE
     $<$<CONFIG:Debug>:BX_CONFIG_DEBUG=1>
     $<$<NOT:$<CONFIG:Debug>>:BX_CONFIG_DEBUG=0>
 )
+
+find_package(fastgltf CONFIG REQUIRED)
 
 if(WIN32)
     find_package(glfw3 CONFIG REQUIRED)
@@ -75,11 +79,13 @@ endif()
 if(WIN32)
     target_link_libraries(openchordix_renderer PRIVATE
         ${BGFX_LIBS}
+        fastgltf::fastgltf
         ${OPENCHORDIX_GLFW_LIB}
     )
 else()
     target_link_libraries(openchordix_renderer PRIVATE
         ${BGFX_LIBS}
+        fastgltf::fastgltf
         ${OPENCHORDIX_GLFW_LIB}
         GL
         X11
