@@ -66,6 +66,15 @@ namespace
         }
     }
 
+    void charCallback(GLFWwindow *window, unsigned int codepoint)
+    {
+        auto *ctx = static_cast<GraphicsContext *>(glfwGetWindowUserPointer(window));
+        if (ctx)
+        {
+            ctx->pushInputChar(static_cast<uint32_t>(codepoint));
+        }
+    }
+
 #ifdef _WIN32
 #ifndef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
 #define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((void *)-4)
@@ -268,6 +277,7 @@ bool GraphicsContext::initializeWindowed(const char *title)
 
     glfwSetWindowUserPointer(window_, this);
     glfwSetScrollCallback(window_, scrollCallback);
+    glfwSetCharCallback(window_, charCallback);
     startedWithWindow_ = true;
 
     syncFramebufferSize(width, height);
@@ -448,6 +458,8 @@ FrameInput GraphicsContext::pollFrame()
 
     input.scroll = static_cast<int32_t>(scrollDelta_);
     scrollDelta_ = 0.0f;
+    input.inputChars = std::move(inputChars_);
+    inputChars_.clear();
     return input;
 }
 
@@ -468,6 +480,11 @@ void GraphicsContext::shutdown()
         window_ = nullptr;
     }
     glfwTerminate();
+}
+
+void GraphicsContext::pushInputChar(uint32_t codepoint)
+{
+    inputChars_.push_back(codepoint);
 }
 
 void GraphicsContext::applyResize(uint32_t width, uint32_t height)
