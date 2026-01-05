@@ -129,6 +129,7 @@ endif()
 target_link_libraries(OpenChordix PRIVATE
     openchordix_core
     openchordix_renderer
+    openchordix_devtools
 )
 
 message(STATUS "App CMake: Configured OpenChordix executable")
