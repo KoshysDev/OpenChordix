@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.19.8)
-project(OpenChordix VERSION 0.2.0 LANGUAGES CXX)
+
+set(OPENCHORDIX_VERSION "0.0.0")
+set(OPENCHORDIX_MANIFEST_PATH "${CMAKE_SOURCE_DIR}/.release-please-manifest.json")
+if(EXISTS "${OPENCHORDIX_MANIFEST_PATH}")
+    file(READ "${OPENCHORDIX_MANIFEST_PATH}" OPENCHORDIX_MANIFEST_JSON)
+    string(JSON OPENCHORDIX_VERSION GET "${OPENCHORDIX_MANIFEST_JSON}" ".")
+else()
+    message(WARNING "Top-Level: .release-please-manifest.json not found; using version ${OPENCHORDIX_VERSION}")
+endif()
+
+project(OpenChordix VERSION ${OPENCHORDIX_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
