@@ -33,7 +33,8 @@ private:
         MainMenu,
         TrackSelect,
         Tuner,
-        Settings
+        Settings,
+        Test
     };
 
     void configureImGuiStyle();
