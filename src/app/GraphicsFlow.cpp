@@ -580,6 +580,8 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
 
         devConsole_.render();
 
+        devConsole_.render();
+
         if (sceneId == SceneId::MainMenu)
         {
             if (auto *menu = dynamic_cast<MainMenuScene *>(currentScene.get()))

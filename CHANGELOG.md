@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/KoshysDev/OpenChordix/compare/v0.3.0...v0.4.0) (2026-01-05)
+
+
+### Features
+
+* **devtools:** add debug console ([34db9c5](https://github.com/KoshysDev/OpenChordix/commit/34db9c5829ba7a95c5a914bff01ac3b7ddf2e73c))
+* **devtools:** add debug console with command registry and default commands ([32da875](https://github.com/KoshysDev/OpenChordix/commit/32da87595f5e0cbc88c039bab6eb2dafa123d2e8))
+
+
+### Bug Fixes
+
+* **ui:** feed ImGui keyboard/char input from GLFW ([adce69f](https://github.com/KoshysDev/OpenChordix/commit/adce69f0bf1e13dc2ec1c740306d6a804c34900c))
+
 ## [0.3.0](https://github.com/KoshysDev/OpenChordix/compare/v0.2.0...v0.3.0) (2026-01-03)
 
 
