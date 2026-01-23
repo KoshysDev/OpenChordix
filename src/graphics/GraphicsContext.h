@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <GLFW/glfw3.h>
@@ -46,6 +47,7 @@ private:
     void setWindowClassHint();
     std::filesystem::path findIconPath() const;
     bool setWindowIcon(const std::filesystem::path &iconPath);
+    bool setWindowIconFromMemory(const unsigned char *data, std::size_t size);
 
     GLFWwindow *window_{nullptr};
     openchordix::Renderer renderer_{};

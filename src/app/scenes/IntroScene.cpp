@@ -6,6 +6,8 @@
 #include <vector>
 #include <stb/stb_image.h>
 
+#include "EmbeddedAssets.h"
+
 IntroScene::IntroScene(float durationSec) : duration_(durationSec) {}
 
 IntroScene::~IntroScene()
@@ -82,16 +84,30 @@ void IntroScene::render(float dt, const FrameInput & /*input*/, GraphicsContext 
 
 bool IntroScene::loadBanner()
 {
-    const auto path = resolveBannerPath();
-    if (path.empty())
-    {
-        return false;
-    }
-
     int width = 0;
     int height = 0;
     int channels = 0;
-    stbi_uc *data = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+    stbi_uc *data = nullptr;
+    auto embedded = openchordix::assets::findEmbeddedAsset("icons/banner.png");
+    if (!embedded)
+    {
+        embedded = openchordix::assets::findEmbeddedAsset("banner.png");
+    }
+    if (embedded)
+    {
+        data = stbi_load_from_memory(embedded->data, static_cast<int>(embedded->size), &width, &height, &channels, STBI_rgb_alpha);
+    }
+
+    if (!data)
+    {
+        const auto path = resolveBannerPath();
+        if (!path.empty())
+        {
+            data = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        }
+    }
+
     if (!data)
     {
         return false;

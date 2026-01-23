@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "DisplayManager.h"
+#include "EmbeddedAssets.h"
 
 #if defined(OPENCHORDIX_ENABLE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
@@ -255,7 +256,24 @@ bool GraphicsContext::initializeWindowed(const char *title)
         return false;
     }
 
-    if (const auto iconPath = findIconPath(); !iconPath.empty())
+    auto embeddedIcon = openchordix::assets::findEmbeddedAsset("icons/AppIcon.png");
+    if (!embeddedIcon)
+    {
+        embeddedIcon = openchordix::assets::findEmbeddedAsset("AppIcon.png");
+    }
+    if (!embeddedIcon)
+    {
+        embeddedIcon = openchordix::assets::findEmbeddedAsset("icons/AppIcon.ico");
+    }
+    if (!embeddedIcon)
+    {
+        embeddedIcon = openchordix::assets::findEmbeddedAsset("AppIcon.ico");
+    }
+    if (embeddedIcon)
+    {
+        setWindowIconFromMemory(embeddedIcon->data, embeddedIcon->size);
+    }
+    else if (const auto iconPath = findIconPath(); !iconPath.empty())
     {
         setWindowIcon(iconPath);
     }
@@ -382,6 +400,32 @@ bool GraphicsContext::setWindowIcon(const std::filesystem::path &iconPath)
     if (!pixels)
     {
         std::cerr << "Failed to load icon from " << iconPath << std::endl;
+        return false;
+    }
+
+    GLFWimage image{};
+    image.width = width;
+    image.height = height;
+    image.pixels = pixels;
+
+    glfwSetWindowIcon(window_, 1, &image);
+    stbi_image_free(pixels);
+    return true;
+}
+
+bool GraphicsContext::setWindowIconFromMemory(const unsigned char *data, std::size_t size)
+{
+    if (!window_ || !data || size == 0)
+    {
+        return false;
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc *pixels = stbi_load_from_memory(data, static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
+    if (!pixels)
+    {
         return false;
     }
 
