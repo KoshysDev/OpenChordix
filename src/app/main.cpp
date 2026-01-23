@@ -7,6 +7,7 @@
 #include <rtaudio/RtAudio.h>
 
 #include "AppController.h"
+#include "DesktopIntegration.h"
 
 // Global flags to signal shutdown from Ctrl+C handler
 std::atomic<bool> g_quit_flag(false);
@@ -30,6 +31,8 @@ int main(int argc, char **argv)
 {
     std::cout << "OpenChordix" << std::endl;
     std::cout << "RtAudio Version: " << RtAudio::getVersion() << std::endl;
+
+    openchordix::app::ensureLocalDesktopEntry();
 
     signal(SIGINT, signalHandler);
 

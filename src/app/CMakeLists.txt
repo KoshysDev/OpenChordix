@@ -1,6 +1,7 @@
 add_executable(OpenChordix
     main.cpp
     AppController.cpp
+    DesktopIntegration.cpp
     console/ConsoleFlow.cpp
     console/ConsolePrompter.cpp
     GraphicsFlow.cpp
@@ -14,6 +15,7 @@ add_executable(OpenChordix
     scenes/TrackSelectScene.cpp
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
+    scenes/TestScene.cpp
     ${CMAKE_SOURCE_DIR}/src/core/track/TrackCatalogMemory.cpp
     ${CMAKE_SOURCE_DIR}/src/core/score/ScoreServiceMemory.cpp
     settings/GraphicsConfig.cpp
@@ -22,6 +24,22 @@ add_executable(OpenChordix
     ui/DeviceSelector.cpp
     ui/UILayout.cpp
 )
+
+set(OPENCHORDIX_ASSET_ROOT ${CMAKE_SOURCE_DIR}/assets)
+file(GLOB_RECURSE OPENCHORDIX_ASSET_FILES CONFIGURE_DEPENDS "${OPENCHORDIX_ASSET_ROOT}/*")
+set(OPENCHORDIX_EMBEDDED_ASSETS_CPP ${CMAKE_CURRENT_BINARY_DIR}/EmbeddedAssets.cpp)
+add_custom_command(
+    OUTPUT ${OPENCHORDIX_EMBEDDED_ASSETS_CPP}
+    COMMAND ${CMAKE_COMMAND}
+        -DINPUT_DIR=${OPENCHORDIX_ASSET_ROOT}
+        -DOUTPUT_CPP=${OPENCHORDIX_EMBEDDED_ASSETS_CPP}
+        -P ${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedAssets.cmake
+    DEPENDS ${OPENCHORDIX_ASSET_FILES} ${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedAssets.cmake
+    VERBATIM
+)
+add_custom_target(OpenChordixEmbeddedAssets DEPENDS ${OPENCHORDIX_EMBEDDED_ASSETS_CPP})
+add_dependencies(OpenChordix OpenChordixEmbeddedAssets)
+target_sources(OpenChordix PRIVATE ${OPENCHORDIX_EMBEDDED_ASSETS_CPP})
 
 set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)
 set(BX_DIR ${BGFX_ROOT}/bx)
@@ -33,6 +51,7 @@ target_include_directories(OpenChordix PRIVATE
     ${CMAKE_SOURCE_DIR}/src/app
     ${CMAKE_SOURCE_DIR}/src/app/scenes
     ${CMAKE_SOURCE_DIR}/src/graphics
+    ${CMAKE_SOURCE_DIR}/src/graphics/assets
     ${BGFX_DIR}/include
     ${BGFX_DIR}/examples/common
     ${BGFX_DIR}/3rdparty
@@ -92,39 +111,7 @@ else()
     message(WARNING "App icon not found in ${APP_ICON_DIR}")
 endif()
 
-# Install targets for desktop integration (icons + desktop entry)
 install(TARGETS OpenChordix RUNTIME DESTINATION bin)
-
-if(EXISTS "${APP_ICON_PNG_PATH}")
-    set(INSTALLED_DESKTOP_FILE ${CMAKE_CURRENT_BINARY_DIR}/openchordix.desktop)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/openchordix.desktop.in ${INSTALLED_DESKTOP_FILE} @ONLY)
-    install(FILES ${INSTALLED_DESKTOP_FILE} DESTINATION share/applications)
-
-    install(FILES ${APP_ICON_PNG_PATH}
-        DESTINATION share/icons/hicolor/256x256/apps
-        RENAME ${APP_ICON_THEME_NAME}.png)
-    install(FILES ${APP_ICON_PNG_PATH}
-        DESTINATION share/icons/hicolor/512x512/apps
-        RENAME ${APP_ICON_THEME_NAME}.png)
-else()
-    message(WARNING "PNG icon not found at ${APP_ICON_PNG_PATH}; desktop entry/icon install skipped")
-endif()
-
-# Generate a runnable desktop file alongside the built binary for file managers
-set(RUNTIME_ICON_FILE "")
-if(EXISTS "${APP_ICON_PNG_PATH}")
-    set(RUNTIME_ICON_FILE "${APP_ICON_NAME}.png")
-elseif(EXISTS "${APP_ICON_ICO_PATH}")
-    set(RUNTIME_ICON_FILE "${APP_ICON_NAME}.ico")
-endif()
-
-if(RUNTIME_ICON_FILE)
-    file(GENERATE
-        OUTPUT "$<TARGET_FILE_DIR:OpenChordix>/OpenChordix.desktop"
-        CONTENT "[Desktop Entry]\nName=OpenChordix\nComment=OpenChordix Pitch Detection\nExec=$<TARGET_FILE:OpenChordix>\nIcon=$<TARGET_FILE_DIR:OpenChordix>/assets/icons/${RUNTIME_ICON_FILE}\nTerminal=false\nType=Application\nCategories=AudioVideo;Audio;\n")
-    add_custom_command(TARGET OpenChordix POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env chmod +x "$<TARGET_FILE_DIR:OpenChordix>/OpenChordix.desktop")
-endif()
 
 target_link_libraries(OpenChordix PRIVATE
     openchordix_core

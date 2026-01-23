@@ -66,7 +66,7 @@ VCPKG_DISABLE_METRICS=1 ./vcpkg/vcpkg install
 make -C external/bgfx linux-gcc-release64 -j"$JOBS"
 
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+  -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/vcpkg/scripts/buildsystems/vcpkg.cmake"
 cmake --build build -j"$JOBS"
 
 echo "Build complete: $ROOT_DIR/build/src/app/OpenChordix"

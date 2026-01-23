@@ -1,11 +1,12 @@
 {
   "name": "openchordix",
-  "version-string": "0.2.0",
+  "version-string": "0.3.0",
   "dependencies": [
     "rtaudio",
     "aubio",
     "pkgconf",
     "catch2",
-    "glfw3"
+    "glfw3",
+    "fastgltf"
   ]
 }
