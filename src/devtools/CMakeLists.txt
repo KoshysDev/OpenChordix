@@ -5,6 +5,8 @@ add_library(openchordix_devtools STATIC
     commands/HelpCommand.cpp
     commands/ClearCommand.cpp
     commands/QuitCommand.cpp
+    commands/SceneCommands.cpp
+    commands/ModelCommands.cpp
 )
 
 set(BGFX_ROOT ${CMAKE_SOURCE_DIR}/external)

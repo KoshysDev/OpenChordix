@@ -2,8 +2,8 @@
 
 #include <imgui/imgui.h>
 
-TestScene::TestScene(AnimatedUI &ui)
-    : ui_(ui)
+TestScene::TestScene(AnimatedUI &ui, const TestSceneData &data)
+    : ui_(ui), data_(data)
 {
 }
 
@@ -29,6 +29,7 @@ void TestScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsConte
 
         ImGui::SetCursorPos(ImVec2(screen.x * 0.5f - 120.0f, screen.y * 0.5f - 16.0f));
         ImGui::TextColored(ImVec4(0.85f, 0.90f, 1.0f, 1.0f), "Test Scene");
+
     }
     ImGui::End();
 }

@@ -10,7 +10,14 @@
 #include <span>
 
 #define STB_IMAGE_IMPLEMENTATION
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #include <stb/stb_image.h>
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 namespace openchordix::assets
 {
@@ -116,6 +123,28 @@ namespace openchordix::assets
                                                                 }
                                                                 std::span<const std::byte> bytes(
                                                                     array.bytes.data() + bufferView.byteOffset,
+                                                                    bufferView.byteLength);
+                                                                return decodeImageBytes(bytes);
+                                                            },
+                                                            [&](const fastgltf::sources::Vector &vector) -> std::optional<ImageData>
+                                                            {
+                                                                if (bufferView.byteOffset + bufferView.byteLength > vector.bytes.size())
+                                                                {
+                                                                    return std::nullopt;
+                                                                }
+                                                                std::span<const std::byte> bytes(
+                                                                    vector.bytes.data() + bufferView.byteOffset,
+                                                                    bufferView.byteLength);
+                                                                return decodeImageBytes(bytes);
+                                                            },
+                                                            [&](const fastgltf::sources::ByteView &viewBytes) -> std::optional<ImageData>
+                                                            {
+                                                                if (bufferView.byteOffset + bufferView.byteLength > viewBytes.bytes.size())
+                                                                {
+                                                                    return std::nullopt;
+                                                                }
+                                                                std::span<const std::byte> bytes(
+                                                                    viewBytes.bytes.data() + bufferView.byteOffset,
                                                                     bufferView.byteLength);
                                                                 return decodeImageBytes(bytes);
                                                             }},

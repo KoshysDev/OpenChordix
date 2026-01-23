@@ -11,6 +11,7 @@
 #include "ConfigStore.h"
 #include "GraphicsContext.h"
 #include "NoteConverter.h"
+#include "scenes/TestScene.h"
 #include "Scene.h"
 #include "devtools/DevConsole.h"
 
@@ -27,7 +28,6 @@ public:
 
     int run(std::atomic<bool> &quitFlag);
 
-private:
     enum class SceneId
     {
         Intro,
@@ -39,6 +39,7 @@ private:
         Test
     };
 
+private:
     void configureImGuiStyle();
     std::unique_ptr<Scene> makeScene(SceneId id);
 
@@ -49,4 +50,5 @@ private:
     AnimatedUI &ui_;
     std::vector<RtAudio::Api> apis_;
     openchordix::devtools::DevConsole devConsole_;
+    TestSceneData testSceneData_{};
 };
