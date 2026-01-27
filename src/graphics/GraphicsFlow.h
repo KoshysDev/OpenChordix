@@ -11,7 +11,7 @@
 #include "ConfigStore.h"
 #include "GraphicsContext.h"
 #include "NoteConverter.h"
-#include "scenes/TestScene.h"
+#include "scenes/TestSceneModelController.h"
 #include "Scene.h"
 #include "devtools/DevConsole.h"
 
@@ -50,5 +50,5 @@ private:
     AnimatedUI &ui_;
     std::vector<RtAudio::Api> apis_;
     openchordix::devtools::DevConsole devConsole_;
-    TestSceneData testSceneData_{};
+    TestSceneModelController testSceneModel_{};
 };

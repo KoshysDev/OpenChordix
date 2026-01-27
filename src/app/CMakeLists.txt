@@ -3,7 +3,9 @@ add_executable(OpenChordix
     AppController.cpp
     console/ConsoleFlow.cpp
     console/ConsolePrompter.cpp
-    GraphicsFlow.cpp
+    platform/ImGuiPlatformBridge.cpp
+    scenes/SceneCatalog.cpp
+    ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsFlow.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsContext.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/DisplayManager.cpp
     ${CMAKE_SOURCE_DIR}/src/core/audio/AudioSession.cpp
