@@ -6,7 +6,6 @@
 #include <algorithm>
 
 #include "DisplayManager.h"
-#include "EmbeddedAssets.h"
 
 #if defined(OPENCHORDIX_ENABLE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
@@ -14,6 +13,8 @@
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
 #include <imgui/imgui.h>
+
+#include "render/RenderViewIds.h"
 
 #if defined(GLFW_EXPOSE_NATIVE_X11)
 #include <X11/Xlib.h>
@@ -33,6 +34,8 @@
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+
+#include "EmbeddedAssets.h"
 
 namespace
 {
@@ -125,6 +128,7 @@ namespace
 GraphicsContext::GraphicsContext()
 {
     rendererConfig_.clearColor = 0x11141cff;
+    rendererConfig_.viewId = openchordix::render::kViewIdScene;
 }
 
 GraphicsContext::~GraphicsContext()
@@ -463,6 +467,13 @@ bool GraphicsContext::initializeRenderer()
         std::cerr << "Renderer: Failed to initialize bgfx." << std::endl;
         return false;
     }
+    if (!modelRenderer_.initialize())
+    {
+        std::cerr << "Renderer: Failed to initialize model renderer." << std::endl;
+    }
+
+    uint16_t viewOrder[] = {openchordix::render::kViewIdScene, openchordix::render::kViewIdUi};
+    bgfx::setViewOrder(0, 2, viewOrder);
     return true;
 }
 
@@ -510,6 +521,7 @@ bool GraphicsContext::shouldClose() const
 
 void GraphicsContext::shutdown()
 {
+    modelRenderer_.shutdown();
     if (renderer_.isInitialized())
     {
         renderer_.shutdown();
