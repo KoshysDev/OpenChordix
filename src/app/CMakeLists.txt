@@ -5,6 +5,7 @@ add_executable(OpenChordix
     console/ConsolePrompter.cpp
     platform/ImGuiPlatformBridge.cpp
     scenes/SceneCatalog.cpp
+    scenes/TestSceneModelController.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsFlow.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/GraphicsContext.cpp
     ${CMAKE_SOURCE_DIR}/src/graphics/DisplayManager.cpp
@@ -23,6 +24,8 @@ add_executable(OpenChordix
     settings/DisplaySettingsController.cpp
     ui/ModalDialog.cpp
     ui/DeviceSelector.cpp
+    ui/IconGlyphs.cpp
+    ui/FileDialog.cpp
     ui/UILayout.cpp
 )
 
@@ -62,7 +65,6 @@ target_include_directories(OpenChordix PRIVATE
     ${CMAKE_SOURCE_DIR}/src/app
     ${CMAKE_SOURCE_DIR}/src/app/scenes
     ${CMAKE_SOURCE_DIR}/src/graphics
-    ${CMAKE_SOURCE_DIR}/src/graphics/assets
     ${BGFX_DIR}/include
     ${BGFX_DIR}/examples/common
     ${BGFX_DIR}/3rdparty
