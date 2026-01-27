@@ -27,17 +27,27 @@ add_executable(OpenChordix
 
 set(OPENCHORDIX_ASSET_ROOT ${CMAKE_SOURCE_DIR}/assets)
 file(GLOB_RECURSE OPENCHORDIX_ASSET_FILES CONFIGURE_DEPENDS "${OPENCHORDIX_ASSET_ROOT}/*")
+if(NOT OPENCHORDIX_ASSET_FILES)
+    message(FATAL_ERROR "No assets found under ${OPENCHORDIX_ASSET_ROOT}. Embedded assets are required.")
+endif()
+if(NOT OPENCHORDIX_GENERATED_ASSET_ROOT)
+    set(OPENCHORDIX_GENERATED_ASSET_ROOT "${CMAKE_BINARY_DIR}/generated-assets")
+endif()
+file(MAKE_DIRECTORY "${OPENCHORDIX_GENERATED_ASSET_ROOT}")
 set(OPENCHORDIX_EMBEDDED_ASSETS_CPP ${CMAKE_CURRENT_BINARY_DIR}/EmbeddedAssets.cpp)
 add_custom_command(
     OUTPUT ${OPENCHORDIX_EMBEDDED_ASSETS_CPP}
     COMMAND ${CMAKE_COMMAND}
-        -DINPUT_DIR=${OPENCHORDIX_ASSET_ROOT}
+        -DINPUT_DIRS=${OPENCHORDIX_ASSET_ROOT}\;${OPENCHORDIX_GENERATED_ASSET_ROOT}
         -DOUTPUT_CPP=${OPENCHORDIX_EMBEDDED_ASSETS_CPP}
         -P ${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedAssets.cmake
-    DEPENDS ${OPENCHORDIX_ASSET_FILES} ${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedAssets.cmake
+    DEPENDS ${OPENCHORDIX_ASSET_FILES} ${OPENCHORDIX_SHADER_OUTPUTS} ${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedAssets.cmake
     VERBATIM
 )
 add_custom_target(OpenChordixEmbeddedAssets DEPENDS ${OPENCHORDIX_EMBEDDED_ASSETS_CPP})
+if(TARGET OpenChordixShaders)
+    add_dependencies(OpenChordixEmbeddedAssets OpenChordixShaders)
+endif()
 add_dependencies(OpenChordix OpenChordixEmbeddedAssets)
 target_sources(OpenChordix PRIVATE ${OPENCHORDIX_EMBEDDED_ASSETS_CPP})
 
@@ -70,45 +80,15 @@ target_compile_definitions(OpenChordix PRIVATE
 set(APP_ICON_DIR ${CMAKE_SOURCE_DIR}/assets/icons)
 set(APP_ICON_NAME AppIcon)
 set(APP_ICON_ICO_PATH ${APP_ICON_DIR}/${APP_ICON_NAME}.ico)
-set(APP_ICON_PNG_PATH ${APP_ICON_DIR}/${APP_ICON_NAME}.png)
-set(APP_BANNER_PATH ${APP_ICON_DIR}/banner.png)
-set(APP_ICON_FILES "")
-set(APP_ICON_THEME_NAME openchordix)
 
-if(EXISTS "${APP_ICON_ICO_PATH}")
-    message(STATUS "App icon (.ico) found at ${APP_ICON_ICO_PATH}")
-    target_compile_definitions(OpenChordix PRIVATE OPENCHORDIX_APP_ICON_ICO_PATH="${APP_ICON_ICO_PATH}")
-    list(APPEND APP_ICON_FILES "${APP_ICON_ICO_PATH}")
-endif()
-
-if(EXISTS "${APP_ICON_PNG_PATH}")
-    message(STATUS "App icon (.png) found at ${APP_ICON_PNG_PATH}")
-    target_compile_definitions(OpenChordix PRIVATE OPENCHORDIX_APP_ICON_PNG_PATH="${APP_ICON_PNG_PATH}")
-    list(APPEND APP_ICON_FILES "${APP_ICON_PNG_PATH}")
-endif()
-
-if(EXISTS "${APP_BANNER_PATH}")
-    message(STATUS "App banner found at ${APP_BANNER_PATH}")
-    target_compile_definitions(OpenChordix PRIVATE OPENCHORDIX_BANNER_PATH="${APP_BANNER_PATH}")
-    list(APPEND APP_ICON_FILES "${APP_BANNER_PATH}")
-endif()
-
-set(OPENCHORDIX_DESKTOP_EXEC "OpenChordix")
-set(OPENCHORDIX_DESKTOP_ICON "${APP_ICON_THEME_NAME}")
-
-if(APP_ICON_FILES)
-    add_custom_command(TARGET OpenChordix POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:OpenChordix>/assets/icons"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${APP_ICON_FILES} "$<TARGET_FILE_DIR:OpenChordix>/assets/icons"
-        VERBATIM
-    )
-
-    if(WIN32)
+if(WIN32)
+    if(EXISTS "${APP_ICON_ICO_PATH}")
+        message(STATUS "App icon (.ico) found at ${APP_ICON_ICO_PATH}")
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/appicon.rc.in ${CMAKE_CURRENT_BINARY_DIR}/appicon.rc @ONLY)
         target_sources(OpenChordix PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/appicon.rc)
+    else()
+        message(WARNING "App icon (.ico) not found at ${APP_ICON_ICO_PATH}")
     endif()
-else()
-    message(WARNING "App icon not found in ${APP_ICON_DIR}")
 endif()
 
 install(TARGETS OpenChordix RUNTIME DESTINATION bin)

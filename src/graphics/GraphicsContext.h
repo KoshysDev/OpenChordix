@@ -46,8 +46,8 @@ private:
     void updateNativeHandles();
     void setWindowClassHint();
     std::filesystem::path findIconPath() const;
+    bool setWindowIconFromEmbedded();
     bool setWindowIcon(const std::filesystem::path &iconPath);
-    bool setWindowIconFromMemory(const unsigned char *data, std::size_t size);
 
     GLFWwindow *window_{nullptr};
     openchordix::Renderer renderer_{};

@@ -2,8 +2,7 @@
 
 #include <imgui/imgui.h>
 #include <algorithm>
-#include <system_error>
-#include <vector>
+#include <iostream>
 #include <stb/stb_image.h>
 
 #include "EmbeddedAssets.h"
@@ -101,15 +100,7 @@ bool IntroScene::loadBanner()
 
     if (!data)
     {
-        const auto path = resolveBannerPath();
-        if (!path.empty())
-        {
-            data = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
-        }
-    }
-
-    if (!data)
-    {
+        std::cerr << "IntroScene: Failed to load embedded banner." << std::endl;
         return false;
     }
 
@@ -132,47 +123,4 @@ bool IntroScene::loadBanner()
     }
 
     return false;
-}
-
-std::filesystem::path IntroScene::resolveBannerPath() const
-{
-    std::vector<std::filesystem::path> candidates;
-#ifdef OPENCHORDIX_BANNER_PATH
-    candidates.emplace_back(std::filesystem::path{OPENCHORDIX_BANNER_PATH});
-#endif
-
-    const char *names[] = {"banner.png", "Banner.png", "banner.webp"};
-    const auto cwd = std::filesystem::current_path();
-
-    std::filesystem::path exeDir;
-#if defined(__linux__)
-    std::error_code ec;
-    auto exe = std::filesystem::read_symlink("/proc/self/exe", ec);
-    if (!ec)
-    {
-        exeDir = exe.parent_path();
-    }
-#endif
-    if (exeDir.empty())
-    {
-        exeDir = cwd;
-    }
-
-    for (const auto *name : names)
-    {
-        candidates.emplace_back(cwd / "assets/icons" / name);
-        candidates.emplace_back(cwd / name);
-        candidates.emplace_back(exeDir / "assets/icons" / name);
-    }
-
-    for (const auto &path : candidates)
-    {
-        std::error_code ec;
-        if (!path.empty() && std::filesystem::exists(path, ec))
-        {
-            return path;
-        }
-    }
-
-    return {};
 }
