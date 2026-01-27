@@ -1,7 +1,6 @@
 add_executable(OpenChordix
     main.cpp
     AppController.cpp
-    DesktopIntegration.cpp
     console/ConsoleFlow.cpp
     console/ConsolePrompter.cpp
     GraphicsFlow.cpp
