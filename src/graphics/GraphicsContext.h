@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <GLFW/glfw3.h>
@@ -10,6 +9,7 @@
 #include <vector>
 
 #include "Renderer.h"
+#include "render/ModelRenderer.h"
 
 struct FrameInput
 {
@@ -41,17 +41,20 @@ public:
     GLFWmonitor *currentMonitor() const;
     const openchordix::RendererConfig &config() const { return rendererConfig_; }
     openchordix::Renderer &renderer() { return renderer_; }
+    openchordix::render::ModelRenderer &modelRenderer() { return modelRenderer_; }
+    const openchordix::render::ModelRenderer &modelRenderer() const { return modelRenderer_; }
 
 private:
     void updateNativeHandles();
     void setWindowClassHint();
     std::filesystem::path findIconPath() const;
+    bool setWindowIconFromEmbedded();
     bool setWindowIcon(const std::filesystem::path &iconPath);
-    bool setWindowIconFromMemory(const unsigned char *data, std::size_t size);
 
     GLFWwindow *window_{nullptr};
     openchordix::Renderer renderer_{};
     openchordix::RendererConfig rendererConfig_{};
+    openchordix::render::ModelRenderer modelRenderer_{};
     bool startedWithWindow_{false};
     float scrollDelta_{0.0f};
     std::vector<uint32_t> inputChars_{};

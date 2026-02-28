@@ -2,7 +2,6 @@
 
 #include "Scene.h"
 #include <bgfx/bgfx.h>
-#include <filesystem>
 #include <imgui/imgui.h>
 
 class IntroScene : public Scene
@@ -15,7 +14,6 @@ public:
 
 private:
     bool loadBanner();
-    std::filesystem::path resolveBannerPath() const;
 
     float duration_;
     float elapsed_ = 0.0f;
