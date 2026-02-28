@@ -2,7 +2,11 @@ name: ci
 
 on:
   push:
+    branches:
+      - master
   pull_request:
+    branches:
+      - master
 
 jobs:
   build-test:
@@ -94,7 +98,7 @@ jobs:
         run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Install vcpkg dependencies
-        if: steps.vcpkg-installed.outputs.installed != 'true'
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-installed.outputs.installed != 'true'
         run: ./vcpkg/vcpkg install
 
       - name: Configure
@@ -201,7 +205,7 @@ jobs:
         run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Install vcpkg dependencies
-        if: steps.vcpkg-installed.outputs.installed != 'true'
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-installed.outputs.installed != 'true'
         run: ./vcpkg/vcpkg install
 
       - name: Configure (ASan/UBSan)

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.0](https://github.com/KoshysDev/OpenChordix/compare/v0.4.0...v0.5.0) (2026-01-23)
+
+
+### Features
+
+* **app:** add test scene for experimentation ([1705a36](https://github.com/KoshysDev/OpenChordix/commit/1705a363d5ba4d273f6b631d857b3ae91bd0f43e))
+* **assets:** embed assets and extract on first run ([b194dfc](https://github.com/KoshysDev/OpenChordix/commit/b194dfcdcbdb3d4d65dd74db0a115ca1e044d20a))
+* **devtools:** add debug console with command registry and default commands ([91c4ee7](https://github.com/KoshysDev/OpenChordix/commit/91c4ee78f97bdabf90bf75ecba1b1f97d861f8c2))
+* **gltf:** add model commands and textured preview overlay ([06f7b43](https://github.com/KoshysDev/OpenChordix/commit/06f7b43655f4768a2aa25c48fbdde794d9d35b4e))
+
+
+### Bug Fixes
+
+* **ui:** feed ImGui keyboard/char input from GLFW ([73c1f1b](https://github.com/KoshysDev/OpenChordix/commit/73c1f1b1d207f98c1272e4080c4266a03d0cf12d))
+
+## [0.4.0](https://github.com/KoshysDev/OpenChordix/compare/v0.3.0...v0.4.0) (2026-01-05)
+
+
+### Features
+
+* **devtools:** add debug console ([34db9c5](https://github.com/KoshysDev/OpenChordix/commit/34db9c5829ba7a95c5a914bff01ac3b7ddf2e73c))
+* **devtools:** add debug console with command registry and default commands ([32da875](https://github.com/KoshysDev/OpenChordix/commit/32da87595f5e0cbc88c039bab6eb2dafa123d2e8))
+
+
+### Bug Fixes
+
+* **ui:** feed ImGui keyboard/char input from GLFW ([adce69f](https://github.com/KoshysDev/OpenChordix/commit/adce69f0bf1e13dc2ec1c740306d6a804c34900c))
+
 ## [0.3.0](https://github.com/KoshysDev/OpenChordix/compare/v0.2.0...v0.3.0) (2026-01-03)
 
 
