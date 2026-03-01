@@ -160,6 +160,10 @@ jobs:
     env:
       VCPKG_FEATURE_FLAGS: manifests
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg/binary_cache
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg/binary_cache,readwrite
+      VCPKG_DEFAULT_TRIPLET: x64-mingw-dynamic
+      VCPKG_DEFAULT_HOST_TRIPLET: x64-mingw-dynamic
+      VCPKG_MAX_CONCURRENCY: 2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -174,21 +178,30 @@ jobs:
           "bx=$(git -C external/bx rev-parse HEAD)" >> $env:GITHUB_OUTPUT
           "bimg=$(git -C external/bimg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
 
-      - name: Cache bgfx build (Windows)
+      - name: Capture vcpkg revision
+        id: vcpkg-rev-win
+        shell: pwsh
+        run: |
+          "vcpkg=$(git -C external/vcpkg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+
+      - name: Restore bgfx build cache (Windows)
         id: bgfx-cache-win
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: external/bgfx/.build
           key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs-win.outputs.bgfx }}-${{ steps.bgfx-revs-win.outputs.bx }}-${{ steps.bgfx-revs-win.outputs.bimg }}
 
-      - name: Cache vcpkg artifacts (Windows)
+      - name: Restore vcpkg artifacts cache (Windows)
         id: vcpkg-cache-win
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .cache/vcpkg/binary_cache
             build/vcpkg_installed
-          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ steps.vcpkg-rev-win.outputs.vcpkg }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ steps.vcpkg-rev-win.outputs.vcpkg }}-
+            ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-
 
       - name: Ensure vcpkg cache directory
         shell: pwsh
@@ -202,15 +215,196 @@ jobs:
           install: >-
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-make
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
 
-      - name: Add MinGW to PATH
+      - name: Resolve MinGW path
+        id: mingw-path
         shell: pwsh
         run: |
-          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $candidates = @(
+            "C:\msys64\mingw64\bin",
+            (Join-Path $env:RUNNER_TEMP "msys64\mingw64\bin"),
+            "D:\a\_temp\msys64\mingw64\bin"
+          )
+          $binDir = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path (Join-Path $candidate "g++.exe")) {
+              $binDir = $candidate
+              break
+            }
+          }
 
-      - name: Build (MinGW)
+          if (-not $binDir) {
+            throw "Failed to locate MinGW bin directory from known MSYS2 locations."
+          }
+
+          $binDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "mingw_bin=$binDir" >> $env:GITHUB_OUTPUT
+
+      - name: Patch bgfx file_list for Windows dirent
         shell: pwsh
-        run: .\windows-build-setup.bat
+        run: |
+          $file = "external/bgfx/3rdparty/dear-imgui/widgets/file_list.inl"
+          $content = Get-Content $file -Raw
+          $oldPatterns = @(
+            '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)',
+            '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)'
+          )
+          $new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)'
+          $directOld = 'if (item->d_type & DT_DIR)'
+          $directNew = @(
+            '#if !defined(_WIN32) && defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)',
+            '					if (item->d_type & DT_DIR)',
+            '#else',
+            '					struct stat statbuf;',
+            '					if (0 == stat(item->d_name, &statbuf) && (statbuf.st_mode & S_IFDIR) != 0)',
+            '#endif'
+          ) -join [Environment]::NewLine
+          if ($content.Contains($new)) {
+            Write-Host "bgfx file_list Windows dirent patch already applied."
+          } else {
+            $patched = $content
+            foreach ($old in $oldPatterns) {
+              $patched = $patched.Replace($old, $new)
+            }
+            $patched = $patched.Replace($directOld, $directNew)
+
+            if ($patched -ne $content) {
+              Set-Content -Path $file -Value $patched -NoNewline
+              Write-Host "Applied Windows dirent compatibility patch to $file"
+            } else {
+              Write-Host "Expected pattern not found in $file; patch may already be upstream."
+            }
+          }
+
+      - name: Build bgfx (Windows Release)
+        if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          export MINGW=/mingw64
+          mingw32-make -C external/bgfx mingw-gcc-release64 MINGW="$MINGW" -j2
+
+      - name: Save bgfx build cache (Windows)
+        if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: external/bgfx/.build
+          key: ${{ steps.bgfx-cache-win.outputs.cache-primary-key }}
+
+      - name: Check vcpkg tool
+        id: vcpkg-tool-win
+        shell: pwsh
+        run: |
+          if (Test-Path "external/vcpkg/vcpkg.exe") {
+            "ready=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "ready=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Check vcpkg install
+        id: vcpkg-installed-win
+        shell: pwsh
+        run: |
+          $buildInstalled = Test-Path "build/vcpkg_installed" -PathType Container
+          $buildCount = if ($buildInstalled) { (Get-ChildItem "build/vcpkg_installed" -Force | Measure-Object).Count } else { 0 }
+          if ($buildCount -gt 0) {
+            "installed=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "installed=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Bootstrap vcpkg
+        if: steps.vcpkg-tool-win.outputs.ready != 'true'
+        shell: pwsh
+        run: .\external\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Patch vcpkg ffmpeg make launcher
+        shell: pwsh
+        run: |
+          $ffmpegBuildScript = "external/vcpkg/ports/ffmpeg/build.sh.in"
+          $content = Get-Content $ffmpegBuildScript -Raw
+          $patched = $content -replace 'MAKE_BINARY="make"', 'MAKE_BINARY="/usr/bin/make"'
+          if ($patched -eq $content) {
+            Write-Host "ffmpeg build.sh.in already patched or format changed."
+          } else {
+            Set-Content -Path $ffmpegBuildScript -Value $patched
+          }
+
+      - name: Install vcpkg dependencies
+        if: steps.vcpkg-cache-win.outputs.cache-hit != 'true' || steps.vcpkg-installed-win.outputs.installed != 'true'
+        shell: pwsh
+        run: |
+          $buildtreesRoot = Join-Path $env:RUNNER_TEMP "vcpkg-buildtrees"
+          $packagesRoot = Join-Path $env:RUNNER_TEMP "vcpkg-packages"
+          $downloadsRoot = Join-Path $env:RUNNER_TEMP "vcpkg-downloads"
+          $tempRoots = @($buildtreesRoot, $packagesRoot, $downloadsRoot)
+          foreach ($root in $tempRoots) {
+            if (Test-Path $root) {
+              Remove-Item $root -Recurse -Force
+            }
+            New-Item -Path $root -ItemType Directory -Force | Out-Null
+          }
+
+          $installArgs = @(
+            "install",
+            "--triplet", "x64-mingw-dynamic",
+            "--host-triplet", "x64-mingw-dynamic",
+            "--x-install-root=build/vcpkg_installed",
+            "--x-buildtrees-root=$buildtreesRoot",
+            "--x-packages-root=$packagesRoot",
+            "--x-downloads-root=$downloadsRoot"
+          )
+
+          & .\external\vcpkg\vcpkg.exe @installArgs
+          if ($LASTEXITCODE -eq 0) {
+            exit 0
+          }
+
+          Write-Host "First vcpkg install attempt failed. Retrying from clean temporary roots..."
+          foreach ($root in $tempRoots) {
+            if (Test-Path $root) {
+              Remove-Item $root -Recurse -Force
+            }
+            New-Item -Path $root -ItemType Directory -Force | Out-Null
+          }
+
+          & .\external\vcpkg\vcpkg.exe @installArgs
+          exit $LASTEXITCODE
+
+      - name: Save vcpkg artifacts cache (Windows)
+        if: steps.vcpkg-cache-win.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .cache/vcpkg/binary_cache
+            build/vcpkg_installed
+          key: ${{ steps.vcpkg-cache-win.outputs.cache-primary-key }}
+
+      - name: Configure (Windows Release)
+        shell: pwsh
+        run: |
+          if (Test-Path "build/CMakeCache.txt") { Remove-Item "build/CMakeCache.txt" -Force }
+          if (Test-Path "build/CMakeFiles") { Remove-Item "build/CMakeFiles" -Recurse -Force }
+          cmake -B build -G "MinGW Makefiles" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DOPENCHORDIX_BUILD_TESTS=ON `
+            -DOPENCHORDIX_BUILD_APP=ON `
+            -DOPENCHORDIX_BUILD_RENDERER=ON `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}\external\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic `
+            -DVCPKG_HOST_TRIPLET=x64-mingw-dynamic `
+            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}\build\vcpkg_installed"
+
+      - name: Build (Windows Release)
+        shell: pwsh
+        run: cmake --build build -j2
+
+      - name: Test (Windows)
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin;${{ steps.mingw-path.outputs.mingw_bin }};$env:PATH"
+          ctest --test-dir build --output-on-failure
 
       - name: Package Windows zip
         shell: pwsh
@@ -225,7 +419,7 @@ jobs:
           Copy-Item $exePath -Destination $artifactDir -Force
 
           $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "build\vcpkg_installed\x64-mingw-dynamic\bin"
-          $mingwBin = "C:\msys64\mingw64\bin"
+          $mingwBin = "${{ steps.mingw-path.outputs.mingw_bin }}"
 
           $requiredDlls = @(
             "glfw3.dll",
