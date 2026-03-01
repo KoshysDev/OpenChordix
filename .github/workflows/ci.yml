@@ -211,6 +211,43 @@ jobs:
         run: |
           "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Detect MinGW tools
+        id: mingw-tools
+        shell: pwsh
+        run: |
+          $binDir = "C:\msys64\mingw64\bin"
+
+          function Resolve-Tool([string[]]$candidates) {
+            foreach ($name in $candidates) {
+              $path = Join-Path $binDir $name
+              if (Test-Path $path -PathType Leaf) {
+                return $path.Replace("\", "/")
+              }
+            }
+            return $null
+          }
+
+          $cc = Resolve-Tool @("x86_64-w64-mingw32-gcc.exe", "gcc.exe")
+          $cxx = Resolve-Tool @("x86_64-w64-mingw32-g++.exe", "g++.exe")
+          $ar = Resolve-Tool @("ar.exe")
+          $ranlib = Resolve-Tool @("ranlib.exe")
+          $windres = Resolve-Tool @("windres.exe")
+
+          if (!$cc -or !$cxx -or !$ar -or !$ranlib -or !$windres) {
+            Write-Host "MinGW bin dir listing for debug:"
+            Get-ChildItem $binDir | Select-Object -ExpandProperty Name
+            throw "Failed to resolve required MinGW tools."
+          }
+
+          & $cc --version | Select-Object -First 1 | Write-Host
+          & $cxx --version | Select-Object -First 1 | Write-Host
+
+          "cc=$cc" >> $env:GITHUB_OUTPUT
+          "cxx=$cxx" >> $env:GITHUB_OUTPUT
+          "ar=$ar" >> $env:GITHUB_OUTPUT
+          "ranlib=$ranlib" >> $env:GITHUB_OUTPUT
+          "windres=$windres" >> $env:GITHUB_OUTPUT
+
       - name: Prepare bgfx make environment
         shell: pwsh
         run: |
@@ -229,20 +266,20 @@ jobs:
           mingw32-make -C external/bgfx .build/projects/gmake-mingw-gcc `
             MINGW=C:/msys64/mingw64 `
             SHELL=cmd.exe MAKESHELL=cmd.exe `
-            CC=C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe `
-            CXX=C:/msys64/mingw64/bin/x86_64-w64-mingw32-g++.exe `
-            AR=C:/msys64/mingw64/bin/ar.exe `
-            RANLIB=C:/msys64/mingw64/bin/ranlib.exe `
-            WINDRES=C:/msys64/mingw64/bin/windres.exe
+            CC=${{ steps.mingw-tools.outputs.cc }} `
+            CXX=${{ steps.mingw-tools.outputs.cxx }} `
+            AR=${{ steps.mingw-tools.outputs.ar }} `
+            RANLIB=${{ steps.mingw-tools.outputs.ranlib }} `
+            WINDRES=${{ steps.mingw-tools.outputs.windres }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           mingw32-make -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx shaderc `
             MINGW=C:/msys64/mingw64 `
             SHELL=cmd.exe MAKESHELL=cmd.exe `
-            CC=C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe `
-            CXX=C:/msys64/mingw64/bin/x86_64-w64-mingw32-g++.exe `
-            AR=C:/msys64/mingw64/bin/ar.exe `
-            RANLIB=C:/msys64/mingw64/bin/ranlib.exe `
-            WINDRES=C:/msys64/mingw64/bin/windres.exe `
+            CC=${{ steps.mingw-tools.outputs.cc }} `
+            CXX=${{ steps.mingw-tools.outputs.cxx }} `
+            AR=${{ steps.mingw-tools.outputs.ar }} `
+            RANLIB=${{ steps.mingw-tools.outputs.ranlib }} `
+            WINDRES=${{ steps.mingw-tools.outputs.windres }} `
             -j2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
