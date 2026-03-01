@@ -156,6 +156,12 @@ jobs:
           "bx=$(git -C external/bx rev-parse HEAD)" >> $env:GITHUB_OUTPUT
           "bimg=$(git -C external/bimg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
 
+      - name: Capture vcpkg revision
+        id: vcpkg-rev-win
+        shell: pwsh
+        run: |
+          "vcpkg=$(git -C external/vcpkg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+
       - name: Cache bgfx build (Windows)
         id: bgfx-cache-win
         uses: actions/cache@v4
@@ -169,12 +175,8 @@ jobs:
         with:
           path: |
             external/vcpkg/binary_cache
-            external/vcpkg/downloads
-            external/vcpkg/buildtrees
-            external/vcpkg/packages
-            vcpkg_installed
             build/vcpkg_installed
-          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ hashFiles('vcpkg.json', '.github/workflows/ci.yml') }}
+          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ steps.vcpkg-rev-win.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', '.github/workflows/ci.yml') }}
 
       - name: Ensure vcpkg cache directory
         shell: pwsh
@@ -223,29 +225,29 @@ jobs:
         shell: pwsh
         run: .\external\vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Clean stale ffmpeg build state
-        if: steps.vcpkg-cache-win.outputs.cache-hit == 'true'
-        shell: pwsh
-        run: |
-          $paths = @(
-            "external/vcpkg/buildtrees/ffmpeg",
-            "external/vcpkg/packages/ffmpeg_x64-mingw-dynamic"
-          )
-          foreach ($path in $paths) {
-            if (Test-Path $path) {
-              Remove-Item $path -Recurse -Force
-            }
-          }
-
       - name: Install vcpkg dependencies
         if: steps.vcpkg-cache-win.outputs.cache-hit != 'true' || steps.vcpkg-installed-win.outputs.installed != 'true'
         shell: pwsh
         run: |
+          $buildtreesRoot = Join-Path $env:RUNNER_TEMP "vcpkg-buildtrees"
+          $packagesRoot = Join-Path $env:RUNNER_TEMP "vcpkg-packages"
+          $downloadsRoot = Join-Path $env:RUNNER_TEMP "vcpkg-downloads"
+          $tempRoots = @($buildtreesRoot, $packagesRoot, $downloadsRoot)
+          foreach ($root in $tempRoots) {
+            if (Test-Path $root) {
+              Remove-Item $root -Recurse -Force
+            }
+            New-Item -Path $root -ItemType Directory -Force | Out-Null
+          }
+
           $installArgs = @(
             "install",
             "--triplet", "x64-mingw-dynamic",
             "--host-triplet", "x64-mingw-dynamic",
             "--x-install-root=build/vcpkg_installed",
+            "--x-buildtrees-root=$buildtreesRoot",
+            "--x-packages-root=$packagesRoot",
+            "--x-downloads-root=$downloadsRoot",
             "--clean-buildtrees-after-build"
           )
 
@@ -254,15 +256,12 @@ jobs:
             exit 0
           }
 
-          Write-Host "First vcpkg install attempt failed. Retrying after cleaning ffmpeg build state..."
-          $retryPaths = @(
-            "external/vcpkg/buildtrees/ffmpeg",
-            "external/vcpkg/packages/ffmpeg_x64-mingw-dynamic"
-          )
-          foreach ($path in $retryPaths) {
-            if (Test-Path $path) {
-              Remove-Item $path -Recurse -Force
+          Write-Host "First vcpkg install attempt failed. Retrying from clean temporary roots..."
+          foreach ($root in $tempRoots) {
+            if (Test-Path $root) {
+              Remove-Item $root -Recurse -Force
             }
+            New-Item -Path $root -ItemType Directory -Force | Out-Null
           }
 
           & .\external\vcpkg\vcpkg.exe @installArgs
