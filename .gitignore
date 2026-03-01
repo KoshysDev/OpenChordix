@@ -10,6 +10,9 @@ compile_commands.json # Often generated in build dir, useful locally but not usu
 # Includes
 /external/
 /vcpkg_installed/
+/.cache/
+/.tmp-vcpkg*/
+/.tmp-vcpkg-*/
 
 # Build
 build/

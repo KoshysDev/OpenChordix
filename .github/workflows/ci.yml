@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VCPKG_FEATURE_FLAGS: manifests
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/external/vcpkg/binary_cache
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg/binary_cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,15 +65,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            external/vcpkg/binary_cache
-            external/vcpkg/downloads
-            external/vcpkg/buildtrees
-            external/vcpkg/packages
+            .cache/vcpkg/binary_cache
             vcpkg_installed
           key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
 
       - name: Ensure vcpkg cache directory
-        run: mkdir -p external/vcpkg/binary_cache
+        run: mkdir -p .cache/vcpkg/binary_cache
 
       - name: Check vcpkg tool
         id: vcpkg-tool
@@ -137,8 +134,8 @@ jobs:
     runs-on: windows-latest
     env:
       VCPKG_FEATURE_FLAGS: manifests
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/external/vcpkg/binary_cache
-      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/external/vcpkg/binary_cache,readwrite
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg/binary_cache
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg/binary_cache,readwrite
       VCPKG_DEFAULT_TRIPLET: x64-mingw-dynamic
       VCPKG_DEFAULT_HOST_TRIPLET: x64-mingw-dynamic
       VCPKG_MAX_CONCURRENCY: 2
@@ -174,13 +171,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            external/vcpkg/binary_cache
+            .cache/vcpkg/binary_cache
             build/vcpkg_installed
           key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ steps.vcpkg-rev-win.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', '.github/workflows/ci.yml') }}
 
       - name: Ensure vcpkg cache directory
         shell: pwsh
-        run: New-Item -Path external/vcpkg/binary_cache -ItemType Directory -Force | Out-Null
+        run: New-Item -Path .cache/vcpkg/binary_cache -ItemType Directory -Force | Out-Null
 
       - name: Setup MSYS2 (MinGW)
         uses: msys2/setup-msys2@v2
@@ -224,6 +221,18 @@ jobs:
         if: steps.vcpkg-tool-win.outputs.ready != 'true'
         shell: pwsh
         run: .\external\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Patch vcpkg ffmpeg make launcher
+        shell: pwsh
+        run: |
+          $ffmpegBuildScript = "external/vcpkg/ports/ffmpeg/build.sh.in"
+          $content = Get-Content $ffmpegBuildScript -Raw
+          $patched = $content -replace 'MAKE_BINARY="make"', 'MAKE_BINARY="/usr/bin/make"'
+          if ($patched -eq $content) {
+            Write-Host "ffmpeg build.sh.in already patched or format changed."
+          } else {
+            Set-Content -Path $ffmpegBuildScript -Value $patched
+          }
 
       - name: Install vcpkg dependencies
         if: steps.vcpkg-cache-win.outputs.cache-hit != 'true' || steps.vcpkg-installed-win.outputs.installed != 'true'
