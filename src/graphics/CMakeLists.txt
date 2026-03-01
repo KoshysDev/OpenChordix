@@ -39,6 +39,12 @@ target_compile_definitions(openchordix_renderer PRIVATE
     $<$<NOT:$<CONFIG:Debug>>:BX_CONFIG_DEBUG=0>
 )
 
+# MinGW's dirent may define _DIRENT_HAVE_D_TYPE without exposing d_type;
+# force Dear ImGui's file_list widget to use the stat() fallback path.
+if(WIN32 AND MINGW)
+    target_compile_options(openchordix_renderer PRIVATE -U_DIRENT_HAVE_D_TYPE)
+endif()
+
 find_package(fastgltf CONFIG REQUIRED)
 
 if(WIN32)
