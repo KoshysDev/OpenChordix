@@ -90,10 +90,12 @@ if exist "%BGFX_FILELIST%" (
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
         "$file = '%BGFX_FILELIST%';" ^
         "$content = Get-Content $file -Raw;" ^
-        "$old = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)';" ^
-        "$new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)';" ^
+        "$old1 = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)';" ^
+        "$old2 = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)';" ^
+        "$new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)';" ^
         "if ($content.Contains($new)) { exit 0 }" ^
-        "if ($content.Contains($old)) { $content = $content.Replace($old, $new); Set-Content -Path $file -Value $content -NoNewline; exit 0 }" ^
+        "$patched = $content.Replace($old1, $new).Replace($old2, $new);" ^
+        "if ($patched -ne $content) { Set-Content -Path $file -Value $patched -NoNewline; exit 0 }" ^
         "exit 0"
     if errorlevel 1 goto :fail
 )
