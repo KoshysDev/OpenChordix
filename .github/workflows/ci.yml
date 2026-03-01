@@ -206,82 +206,35 @@ jobs:
             mingw-w64-x86_64-nasm
             mingw-w64-x86_64-yasm
 
-      - name: Add MinGW to PATH
+      - name: Resolve MinGW path
+        id: mingw-path
         shell: pwsh
         run: |
-          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Detect MinGW tools
-        id: mingw-tools
-        shell: pwsh
-        run: |
-          $binDir = "C:\msys64\mingw64\bin"
-
-          function Resolve-Tool([string[]]$candidates) {
-            foreach ($name in $candidates) {
-              $path = Join-Path $binDir $name
-              if (Test-Path $path -PathType Leaf) {
-                return $path.Replace("\", "/")
-              }
+          $candidates = @(
+            "C:\msys64\mingw64\bin",
+            (Join-Path $env:RUNNER_TEMP "msys64\mingw64\bin"),
+            "D:\a\_temp\msys64\mingw64\bin"
+          )
+          $binDir = $null
+          foreach ($candidate in $candidates) {
+            if (Test-Path (Join-Path $candidate "g++.exe")) {
+              $binDir = $candidate
+              break
             }
-            return $null
           }
 
-          $cc = Resolve-Tool @("x86_64-w64-mingw32-gcc.exe", "gcc.exe")
-          $cxx = Resolve-Tool @("x86_64-w64-mingw32-g++.exe", "g++.exe")
-          $ar = Resolve-Tool @("ar.exe")
-          $ranlib = Resolve-Tool @("ranlib.exe")
-          $windres = Resolve-Tool @("windres.exe")
-
-          if (!$cc -or !$cxx -or !$ar -or !$ranlib -or !$windres) {
-            Write-Host "MinGW bin dir listing for debug:"
-            Get-ChildItem $binDir | Select-Object -ExpandProperty Name
-            throw "Failed to resolve required MinGW tools."
+          if (-not $binDir) {
+            throw "Failed to locate MinGW bin directory from known MSYS2 locations."
           }
 
-          & $cc --version | Select-Object -First 1 | Write-Host
-          & $cxx --version | Select-Object -First 1 | Write-Host
-
-          "cc=$cc" >> $env:GITHUB_OUTPUT
-          "cxx=$cxx" >> $env:GITHUB_OUTPUT
-          "ar=$ar" >> $env:GITHUB_OUTPUT
-          "ranlib=$ranlib" >> $env:GITHUB_OUTPUT
-          "windres=$windres" >> $env:GITHUB_OUTPUT
-
-      - name: Prepare bgfx make environment
-        shell: pwsh
-        run: |
-          $shimDir = Join-Path $env:RUNNER_TEMP "openchordix-build-shims"
-          New-Item -Path $shimDir -ItemType Directory -Force | Out-Null
-          Set-Content -Path (Join-Path $shimDir "uname.cmd") -Value "@echo off`r`necho Windows_NT`r`n"
-          $env:PATH = "$shimDir;C:\msys64\mingw64\bin;$env:PATH"
-          "shim_dir=$shimDir" >> $env:GITHUB_OUTPUT
-        id: bgfx-env
+          $binDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "mingw_bin=$binDir" >> $env:GITHUB_OUTPUT
 
       - name: Build bgfx (Windows Release)
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
-        shell: pwsh
+        shell: msys2 {0}
         run: |
-          $env:PATH = "${{ steps.bgfx-env.outputs.shim_dir }};C:\msys64\mingw64\bin;$env:PATH"
-          mingw32-make -C external/bgfx .build/projects/gmake-mingw-gcc `
-            MINGW=C:/msys64/mingw64 `
-            SHELL=cmd.exe MAKESHELL=cmd.exe `
-            CC=${{ steps.mingw-tools.outputs.cc }} `
-            CXX=${{ steps.mingw-tools.outputs.cxx }} `
-            AR=${{ steps.mingw-tools.outputs.ar }} `
-            RANLIB=${{ steps.mingw-tools.outputs.ranlib }} `
-            WINDRES=${{ steps.mingw-tools.outputs.windres }}
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          mingw32-make -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx shaderc `
-            MINGW=C:/msys64/mingw64 `
-            SHELL=cmd.exe MAKESHELL=cmd.exe `
-            CC=${{ steps.mingw-tools.outputs.cc }} `
-            CXX=${{ steps.mingw-tools.outputs.cxx }} `
-            AR=${{ steps.mingw-tools.outputs.ar }} `
-            RANLIB=${{ steps.mingw-tools.outputs.ranlib }} `
-            WINDRES=${{ steps.mingw-tools.outputs.windres }} `
-            -j2
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          make -C external/bgfx mingw-gcc-release64 -j2
 
       - name: Save bgfx build cache (Windows)
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
@@ -401,5 +354,5 @@ jobs:
       - name: Test (Windows)
         shell: pwsh
         run: |
-          $env:PATH = "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin;C:\msys64\mingw64\bin;$env:PATH"
+          $env:PATH = "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin;${{ steps.mingw-path.outputs.mingw_bin }};$env:PATH"
           ctest --test-dir build --output-on-failure
