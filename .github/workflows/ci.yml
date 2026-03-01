@@ -243,6 +243,15 @@ jobs:
             '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)'
           )
           $new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)'
+          $directOld = 'if (item->d_type & DT_DIR)'
+          $directNew = @'
+#if !defined(_WIN32) && defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)
+					if (item->d_type & DT_DIR)
+#else
+					struct stat statbuf;
+					if (0 == stat(item->d_name, &statbuf) && (statbuf.st_mode & S_IFDIR) != 0)
+#endif
+'@.Trim()
           if ($content.Contains($new)) {
             Write-Host "bgfx file_list Windows dirent patch already applied."
           } else {
@@ -250,6 +259,7 @@ jobs:
             foreach ($old in $oldPatterns) {
               $patched = $patched.Replace($old, $new)
             }
+            $patched = $patched.Replace($directOld, $directNew)
 
             if ($patched -ne $content) {
               Set-Content -Path $file -Value $patched -NoNewline

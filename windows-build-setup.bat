@@ -93,8 +93,17 @@ if exist "%BGFX_FILELIST%" (
         "$old1 = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)';" ^
         "$old2 = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)';" ^
         "$new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)';" ^
+        "$directOld = 'if (item->d_type & DT_DIR)';" ^
+        "$directNew = @(" ^
+        "'#if !defined(_WIN32) && defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)'," ^
+        "'					if (item->d_type & DT_DIR)'," ^
+        "'#else'," ^
+        "'					struct stat statbuf;'," ^
+        "'					if (0 == stat(item->d_name, &statbuf) && (statbuf.st_mode & S_IFDIR) != 0)'," ^
+        "'#endif'" ^
+        ") -join [Environment]::NewLine;" ^
         "if ($content.Contains($new)) { exit 0 }" ^
-        "$patched = $content.Replace($old1, $new).Replace($old2, $new);" ^
+        "$patched = $content.Replace($old1, $new).Replace($old2, $new).Replace($directOld, $directNew);" ^
         "if ($patched -ne $content) { Set-Content -Path $file -Value $patched -NoNewline; exit 0 }" ^
         "exit 0"
     if errorlevel 1 goto :fail

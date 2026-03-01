@@ -10,9 +10,18 @@ if(WIN32)
         set(OPENCHORDIX_FILE_LIST_OLD "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)")
         set(OPENCHORDIX_FILE_LIST_MINGW "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)")
         set(OPENCHORDIX_FILE_LIST_NEW "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)")
+        set(OPENCHORDIX_FILE_LIST_DIRECT_IF "if (item->d_type & DT_DIR)")
+        set(OPENCHORDIX_FILE_LIST_DIRECT_IF_NEW
+"#if !defined(_WIN32) && defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)
+					if (item->d_type & DT_DIR)
+#else
+					struct stat statbuf;
+					if (0 == stat(item->d_name, &statbuf) && (statbuf.st_mode & S_IFDIR) != 0)
+#endif")
         if(NOT OPENCHORDIX_FILE_LIST_CONTENT MATCHES "#if defined\\(_DIRENT_HAVE_D_TYPE\\) && defined\\(DT_DIR\\) && !defined\\(_WIN32\\)")
             string(REPLACE "${OPENCHORDIX_FILE_LIST_OLD}" "${OPENCHORDIX_FILE_LIST_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_CONTENT}")
             string(REPLACE "${OPENCHORDIX_FILE_LIST_MINGW}" "${OPENCHORDIX_FILE_LIST_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_PATCHED}")
+            string(REPLACE "${OPENCHORDIX_FILE_LIST_DIRECT_IF}" "${OPENCHORDIX_FILE_LIST_DIRECT_IF_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_PATCHED}")
             if(NOT OPENCHORDIX_FILE_LIST_PATCHED STREQUAL OPENCHORDIX_FILE_LIST_CONTENT)
                 file(WRITE "${BGFX_IMGUI_FILE_LIST_INL}" "${OPENCHORDIX_FILE_LIST_PATCHED}")
                 message(STATUS "Patched bgfx dear-imgui file_list.inl for Windows dirent compatibility")
