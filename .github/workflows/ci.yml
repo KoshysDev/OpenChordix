@@ -49,9 +49,9 @@ jobs:
           echo "bx=$(git -C external/bx rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "bimg=$(git -C external/bimg rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache bgfx build
+      - name: Restore bgfx build cache
         id: bgfx-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: external/bgfx/.build
           key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs.outputs.bgfx }}-${{ steps.bgfx-revs.outputs.bx }}-${{ steps.bgfx-revs.outputs.bimg }}
@@ -60,9 +60,16 @@ jobs:
         if: steps.bgfx-cache.outputs.cache-hit != 'true'
         run: make -C external/bgfx linux-gcc-release64 -j2
 
-      - name: Cache vcpkg artifacts
+      - name: Save bgfx build cache
+        if: steps.bgfx-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: external/bgfx/.build
+          key: ${{ steps.bgfx-cache.outputs.cache-primary-key }}
+
+      - name: Restore vcpkg artifacts cache
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .cache/vcpkg/binary_cache
@@ -97,6 +104,15 @@ jobs:
       - name: Install vcpkg dependencies
         if: steps.vcpkg-cache.outputs.cache-hit != 'true' || steps.vcpkg-installed.outputs.installed != 'true'
         run: ./external/vcpkg/vcpkg install
+
+      - name: Save vcpkg artifacts cache
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .cache/vcpkg/binary_cache
+            vcpkg_installed
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
       - name: Configure (Release)
         run: |
@@ -159,16 +175,16 @@ jobs:
         run: |
           "vcpkg=$(git -C external/vcpkg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
 
-      - name: Cache bgfx build (Windows)
+      - name: Restore bgfx build cache (Windows)
         id: bgfx-cache-win
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: external/bgfx/.build
           key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs-win.outputs.bgfx }}-${{ steps.bgfx-revs-win.outputs.bx }}-${{ steps.bgfx-revs-win.outputs.bimg }}
 
-      - name: Cache vcpkg artifacts (Windows)
+      - name: Restore vcpkg artifacts cache (Windows)
         id: vcpkg-cache-win
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .cache/vcpkg/binary_cache
@@ -194,6 +210,48 @@ jobs:
         shell: pwsh
         run: |
           "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Prepare bgfx make environment
+        shell: pwsh
+        run: |
+          $shimDir = Join-Path $env:RUNNER_TEMP "openchordix-build-shims"
+          New-Item -Path $shimDir -ItemType Directory -Force | Out-Null
+          Set-Content -Path (Join-Path $shimDir "uname.cmd") -Value "@echo off`r`necho Windows_NT`r`n"
+          $env:PATH = "$shimDir;C:\msys64\mingw64\bin;$env:PATH"
+          "shim_dir=$shimDir" >> $env:GITHUB_OUTPUT
+        id: bgfx-env
+
+      - name: Build bgfx (Windows Release)
+        if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ steps.bgfx-env.outputs.shim_dir }};C:\msys64\mingw64\bin;$env:PATH"
+          mingw32-make -C external/bgfx .build/projects/gmake-mingw-gcc `
+            MINGW=C:/msys64/mingw64 `
+            SHELL=cmd.exe MAKESHELL=cmd.exe `
+            CC=C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe `
+            CXX=C:/msys64/mingw64/bin/x86_64-w64-mingw32-g++.exe `
+            AR=C:/msys64/mingw64/bin/ar.exe `
+            RANLIB=C:/msys64/mingw64/bin/ranlib.exe `
+            WINDRES=C:/msys64/mingw64/bin/windres.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          mingw32-make -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx shaderc `
+            MINGW=C:/msys64/mingw64 `
+            SHELL=cmd.exe MAKESHELL=cmd.exe `
+            CC=C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe `
+            CXX=C:/msys64/mingw64/bin/x86_64-w64-mingw32-g++.exe `
+            AR=C:/msys64/mingw64/bin/ar.exe `
+            RANLIB=C:/msys64/mingw64/bin/ranlib.exe `
+            WINDRES=C:/msys64/mingw64/bin/windres.exe `
+            -j2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Save bgfx build cache (Windows)
+        if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: external/bgfx/.build
+          key: ${{ steps.bgfx-cache-win.outputs.cache-primary-key }}
 
       - name: Check vcpkg tool
         id: vcpkg-tool-win
@@ -275,25 +333,14 @@ jobs:
           & .\external\vcpkg\vcpkg.exe @installArgs
           exit $LASTEXITCODE
 
-      - name: Prepare bgfx make environment
-        shell: pwsh
-        run: |
-          $shimDir = Join-Path $env:RUNNER_TEMP "openchordix-build-shims"
-          New-Item -Path $shimDir -ItemType Directory -Force | Out-Null
-          Set-Content -Path (Join-Path $shimDir "uname.cmd") -Value "@echo off`r`necho Windows_NT`r`n"
-          $env:PATH = "$shimDir;C:\msys64\mingw64\bin;$env:PATH"
-          "shim_dir=$shimDir" >> $env:GITHUB_OUTPUT
-        id: bgfx-env
-
-      - name: Build bgfx (Windows Release)
-        if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $env:PATH = "${{ steps.bgfx-env.outputs.shim_dir }};C:\msys64\mingw64\bin;$env:PATH"
-          mingw32-make -C external/bgfx .build/projects/gmake-mingw-gcc MINGW=C:/msys64/mingw64 SHELL=cmd.exe MAKESHELL=cmd.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          mingw32-make -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx shaderc MINGW=C:/msys64/mingw64 SHELL=cmd.exe MAKESHELL=cmd.exe -j2
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Save vcpkg artifacts cache (Windows)
+        if: steps.vcpkg-cache-win.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .cache/vcpkg/binary_cache
+            build/vcpkg_installed
+          key: ${{ steps.vcpkg-cache-win.outputs.cache-primary-key }}
 
       - name: Configure (Windows Release)
         shell: pwsh

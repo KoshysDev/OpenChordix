@@ -52,6 +52,7 @@ if not defined GXX_DIR (
 
 for %%P in ("%GXX_DIR%\..") do set "MINGW_ROOT=%%~fP"
 set "MINGW_POSIX=%MINGW_ROOT:\=/%"
+set "BGFX_TOOL_OVERRIDES=CC=%MINGW_POSIX%/bin/x86_64-w64-mingw32-gcc.exe CXX=%MINGW_POSIX%/bin/x86_64-w64-mingw32-g++.exe AR=%MINGW_POSIX%/bin/ar.exe RANLIB=%MINGW_POSIX%/bin/ranlib.exe WINDRES=%MINGW_POSIX%/bin/windres.exe"
 
 if not exist "%MINGW_ROOT%\bin\x86_64-w64-mingw32-g++.exe" (
     echo Missing MinGW compiler: %MINGW_ROOT%\bin\x86_64-w64-mingw32-g++.exe
@@ -84,13 +85,13 @@ if exist ".gitmodules" (
 call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
 if errorlevel 1 goto :fail
 
-call %MAKE_CMD% -C external/bgfx .build/projects/gmake-mingw-gcc MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe
+call %MAKE_CMD% -C external/bgfx .build/projects/gmake-mingw-gcc MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe %BGFX_TOOL_OVERRIDES%
 if errorlevel 1 goto :fail
 
-call %MAKE_CMD% -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe -j%JOBS%
+call %MAKE_CMD% -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 bx bimg bimg_decode bgfx MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe %BGFX_TOOL_OVERRIDES% -j%JOBS%
 if errorlevel 1 goto :fail
 
-call %MAKE_CMD% -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 shaderc MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe -j%JOBS%
+call %MAKE_CMD% -C external/bgfx/.build/projects/gmake-mingw-gcc config=release64 shaderc MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe %BGFX_TOOL_OVERRIDES% -j%JOBS%
 if errorlevel 1 (
     echo Warning: shaderc tool build failed. CMake configure will continue without shader compilation.
 )
