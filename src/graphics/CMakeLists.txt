@@ -3,6 +3,22 @@ set(BX_DIR ${BGFX_ROOT}/bx)
 set(BIMG_DIR ${BGFX_ROOT}/bimg)
 set(BGFX_DIR ${BGFX_ROOT}/bgfx)
 
+if(WIN32 AND MINGW)
+    set(BGFX_IMGUI_FILE_LIST_INL "${BGFX_DIR}/3rdparty/dear-imgui/widgets/file_list.inl")
+    if(EXISTS "${BGFX_IMGUI_FILE_LIST_INL}")
+        file(READ "${BGFX_IMGUI_FILE_LIST_INL}" OPENCHORDIX_FILE_LIST_CONTENT)
+        set(OPENCHORDIX_FILE_LIST_OLD "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)")
+        set(OPENCHORDIX_FILE_LIST_NEW "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)")
+        if(NOT OPENCHORDIX_FILE_LIST_CONTENT MATCHES "#if defined\\(_DIRENT_HAVE_D_TYPE\\) && defined\\(DT_DIR\\) && !defined\\(__MINGW32__\\)")
+            string(REPLACE "${OPENCHORDIX_FILE_LIST_OLD}" "${OPENCHORDIX_FILE_LIST_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_CONTENT}")
+            if(NOT OPENCHORDIX_FILE_LIST_PATCHED STREQUAL OPENCHORDIX_FILE_LIST_CONTENT)
+                file(WRITE "${BGFX_IMGUI_FILE_LIST_INL}" "${OPENCHORDIX_FILE_LIST_PATCHED}")
+                message(STATUS "Patched bgfx dear-imgui file_list.inl for MinGW dirent compatibility")
+            endif()
+        endif()
+    endif()
+endif()
+
 add_library(openchordix_renderer STATIC
     Renderer.cpp
     gltf/GltfLoader.cpp
@@ -38,12 +54,6 @@ target_compile_definitions(openchordix_renderer PRIVATE
     $<$<CONFIG:Debug>:BX_CONFIG_DEBUG=1>
     $<$<NOT:$<CONFIG:Debug>>:BX_CONFIG_DEBUG=0>
 )
-
-# MinGW's dirent may define _DIRENT_HAVE_D_TYPE without exposing d_type;
-# force Dear ImGui's file_list widget to use the stat() fallback path.
-if(WIN32 AND MINGW)
-    target_compile_options(openchordix_renderer PRIVATE -U_DIRENT_HAVE_D_TYPE)
-endif()
 
 find_package(fastgltf CONFIG REQUIRED)
 
