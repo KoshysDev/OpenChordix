@@ -8,7 +8,7 @@ cmake_install.cmake
 compile_commands.json # Often generated in build dir, useful locally but not usually committed
 
 # Includes
-/vcpkg/*
+/external/
 /vcpkg_installed/
 
 # Build
@@ -93,10 +93,6 @@ Desktop.ini
 *.gcno
 *.gcov
 /coverage/
-
-# Dependency Management (adjust if using vcpkg/conan locally)
-# /vcpkg/
-# /conan/
 
 # Log files
 *.log

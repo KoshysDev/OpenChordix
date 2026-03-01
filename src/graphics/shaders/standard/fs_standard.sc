@@ -25,7 +25,7 @@ void main()
 {
     vec4 baseColor = u_baseColorFactor;
     vec4 baseTex = texture2D(s_baseColor, v_uv);
-    baseColor *= mix(vec4(1.0), baseTex, u_miscParams.y);
+    baseColor *= mix(vec4(1.0, 1.0, 1.0, 1.0), baseTex, u_miscParams.y);
 
     float alphaCutoff = u_miscParams.x;
     if (alphaCutoff >= 0.0 && baseColor.a < alphaCutoff)
@@ -38,7 +38,8 @@ void main()
     vec3 B = normalize(cross(N, T)) * v_tangent.w;
     vec3 mapN = texture2D(s_normal, v_uv).xyz * 2.0 - 1.0;
     mapN.xy *= u_miscParams.w;
-    N = normalize(mat3(T, B, N) * mapN);
+    vec3 Nbase = N;
+    N = normalize(T * mapN.x + B * mapN.y + Nbase * mapN.z);
 
     vec3 V = normalize(u_cameraPos.xyz - v_worldPos);
     vec3 L = normalize(-u_lightDir.xyz);
@@ -55,7 +56,8 @@ void main()
     float NdotH = max(dot(N, H), 0.0);
 
     vec3 albedo = baseColor.rgb;
-    vec3 specColor = mix(vec3(0.04), albedo, metallic);
+    vec3 dielectricF0 = vec3(0.04, 0.04, 0.04);
+    vec3 specColor = dielectricF0 + (albedo - dielectricF0) * metallic;
     float specPower = mix(128.0, 8.0, roughness);
     float spec = pow(max(NdotH, 0.0), specPower) * NdotL;
 

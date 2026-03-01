@@ -82,20 +82,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            vcpkg/binary_cache
-            vcpkg/downloads
-            vcpkg/buildtrees
-            vcpkg/packages
+            external/vcpkg/binary_cache
+            external/vcpkg/downloads
+            external/vcpkg/buildtrees
+            external/vcpkg/packages
             vcpkg_installed
           key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
 
       - name: Ensure vcpkg cache directory
-        run: mkdir -p vcpkg/binary_cache
+        run: mkdir -p external/vcpkg/binary_cache
 
       - name: Check vcpkg tool
         id: vcpkg-tool
         run: |
-          if [ -x vcpkg/vcpkg ]; then
+          if [ -x external/vcpkg/vcpkg ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -112,16 +112,16 @@ jobs:
 
       - name: Bootstrap vcpkg
         if: steps.vcpkg-tool.outputs.ready != 'true'
-        run: ./vcpkg/bootstrap-vcpkg.sh
+        run: ./external/vcpkg/bootstrap-vcpkg.sh
 
       - name: Install vcpkg dependencies
         if: steps.vcpkg-installed.outputs.installed != 'true'
-        run: ./vcpkg/vcpkg install
+        run: ./external/vcpkg/vcpkg install
 
       - name: Configure
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+            -DCMAKE_TOOLCHAIN_FILE=./external/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build
         run: cmake --build build -j2
@@ -151,4 +151,95 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: OpenChordix*.AppImage
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+
+  build-windows-zip:
+    runs-on: windows-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSYS2 (MinGW)
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-make
+
+      - name: Add MinGW to PATH
+        shell: pwsh
+        run: |
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build (MinGW)
+        shell: pwsh
+        run: .\windows-build-setup.bat
+
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "dist\windows-x64"
+          New-Item -Path $artifactDir -ItemType Directory -Force | Out-Null
+
+          $exePath = Join-Path $env:GITHUB_WORKSPACE "build\src\app\OpenChordix.exe"
+          if (!(Test-Path $exePath)) {
+            throw "OpenChordix.exe not found at $exePath"
+          }
+          Copy-Item $exePath -Destination $artifactDir -Force
+
+          $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "build\vcpkg_installed\x64-mingw-dynamic\bin"
+          $mingwBin = "C:\msys64\mingw64\bin"
+
+          $requiredDlls = @(
+            "glfw3.dll",
+            "libfastgltf.dll",
+            "librtaudio.dll",
+            "libsimdjson.dll"
+          )
+          $optionalDlls = @(
+            "libgcc_s_seh-1.dll",
+            "libstdc++-6.dll",
+            "libwinpthread-1.dll"
+          )
+
+          function Copy-Dll([string]$dll, [bool]$required) {
+            $fromVcpkg = Join-Path $vcpkgBin $dll
+            $fromMingw = Join-Path $mingwBin $dll
+            if (Test-Path $fromVcpkg) {
+              Copy-Item $fromVcpkg -Destination $artifactDir -Force
+              return
+            }
+            if (Test-Path $fromMingw) {
+              Copy-Item $fromMingw -Destination $artifactDir -Force
+              return
+            }
+            if ($required) {
+              throw "Required runtime DLL not found: $dll"
+            }
+            Write-Host "Optional DLL not found (skipped): $dll"
+          }
+
+          foreach ($dll in $requiredDlls) {
+            Copy-Dll $dll $true
+          }
+          foreach ($dll in $optionalDlls) {
+            Copy-Dll $dll $false
+          }
+
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenChordix-windows-x64.zip"
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path (Join-Path $artifactDir "*") -DestinationPath $zipPath
+
+      - name: Upload Windows zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: OpenChordix-windows-x64.zip
           tag_name: ${{ needs.release-please.outputs.tag_name }}
