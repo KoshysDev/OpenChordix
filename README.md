@@ -91,9 +91,9 @@ git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
 
 #### 4) Bootstrap vcpkg and install deps
 ```bash
-git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
-VCPKG_DISABLE_METRICS=1 ./vcpkg/bootstrap-vcpkg.sh
-VCPKG_DISABLE_METRICS=1 ./vcpkg/vcpkg install
+git clone --depth 1 https://github.com/microsoft/vcpkg.git external/vcpkg
+VCPKG_DISABLE_METRICS=1 ./external/vcpkg/bootstrap-vcpkg.sh
+VCPKG_DISABLE_METRICS=1 ./external/vcpkg/vcpkg install
 ```
 
 #### 5) Build bgfx (Release)
@@ -104,7 +104,7 @@ make -C external/bgfx linux-gcc-release64 -j$(nproc)
 #### 6) Configure + build
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+  -DCMAKE_TOOLCHAIN_FILE=./external/vcpkg/scripts/buildsystems/vcpkg.cmake
 cmake --build build -j$(nproc)
 ```
 
@@ -115,7 +115,16 @@ cmake --build build -j$(nproc)
 
 ### Windows
 
-Windows setup is in progress. If you want to help test or document it, open an issue.
+From a MinGW terminal:
+
+```bat
+git clone https://github.com/KoshysDev/OpenChordix.git
+cd OpenChordix
+windows-build-setup.bat
+```
+
+Prerequisites on `PATH`: `git`, `cmake`, `g++`, and `mingw32-make` (or `make`).
+The setup script auto-detects your MinGW root from `g++` and passes it to bgfx makefiles.
 
 ## Contributing ❤️
 
@@ -131,7 +140,7 @@ Contributions, bug reports, and feature suggestions are welcome! Please open an 
   ```sh
   cmake -B build -DCMAKE_BUILD_TYPE=Release \
     -DOPENCHORDIX_ENABLE_WAYLAND=ON \
-    -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+    -DCMAKE_TOOLCHAIN_FILE=./external/vcpkg/scripts/buildsystems/vcpkg.cmake
 
   cmake --build build -j$(nproc)
 

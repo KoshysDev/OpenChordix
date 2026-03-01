@@ -29,6 +29,10 @@ add_executable(OpenChordix
     ui/UILayout.cpp
 )
 
+if(WIN32)
+    set_target_properties(OpenChordix PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 set(OPENCHORDIX_ASSET_ROOT ${CMAKE_SOURCE_DIR}/assets)
 file(GLOB_RECURSE OPENCHORDIX_ASSET_FILES CONFIGURE_DEPENDS "${OPENCHORDIX_ASSET_ROOT}/*")
 if(NOT OPENCHORDIX_ASSET_FILES)

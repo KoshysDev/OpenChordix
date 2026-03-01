@@ -10,7 +10,7 @@ else
   JOBS=4
 fi
 
-VCPKG_BINARY_CACHE_DIR="${ROOT_DIR}/vcpkg/binary_cache"
+VCPKG_BINARY_CACHE_DIR="${ROOT_DIR}/external/vcpkg/binary_cache"
 mkdir -p "${VCPKG_BINARY_CACHE_DIR}"
 export VCPKG_DEFAULT_BINARY_CACHE="${VCPKG_BINARY_CACHE_DIR}"
 export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_BINARY_CACHE_DIR},readwrite"
@@ -55,18 +55,18 @@ else
   if [ ! -d "external/bimg" ] || [ -z "$(ls -A external/bimg 2>/dev/null)" ]; then
     git clone --depth 1 https://github.com/bkaradzic/bimg.git external/bimg
   fi
-  if [ ! -d "vcpkg" ] || [ -z "$(ls -A vcpkg 2>/dev/null)" ]; then
-    git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+  if [ ! -d "external/vcpkg" ] || [ -z "$(ls -A external/vcpkg 2>/dev/null)" ]; then
+    git clone --depth 1 https://github.com/microsoft/vcpkg.git external/vcpkg
   fi
 fi
 
-VCPKG_DISABLE_METRICS=1 ./vcpkg/bootstrap-vcpkg.sh
-VCPKG_DISABLE_METRICS=1 ./vcpkg/vcpkg install
+VCPKG_DISABLE_METRICS=1 ./external/vcpkg/bootstrap-vcpkg.sh
+VCPKG_DISABLE_METRICS=1 ./external/vcpkg/vcpkg install
 
 make -C external/bgfx linux-gcc-release64 -j"$JOBS"
 
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  -DCMAKE_TOOLCHAIN_FILE="$ROOT_DIR/external/vcpkg/scripts/buildsystems/vcpkg.cmake"
 cmake --build build -j"$JOBS"
 
 echo "Build complete: $ROOT_DIR/build/src/app/OpenChordix"

@@ -170,6 +170,16 @@ namespace openchordix::assets
             return std::nullopt;
         }
 
+        std::string enrichFastgltfError(std::string message)
+        {
+            if (message.find("unsupported version") != std::string::npos ||
+                message.find("Unsupported version") != std::string::npos)
+            {
+                message += " Re-export as glTF 2.0 (.glb/.gltf) and avoid legacy glTF 1.0 exporters.";
+            }
+            return message;
+        }
+
         openchordix::assets::AlphaMode mapAlphaMode(fastgltf::AlphaMode mode)
         {
             switch (mode)
@@ -536,13 +546,13 @@ namespace openchordix::assets
         auto gltfFile = fastgltf::MappedGltfFile::FromPath(path);
         if (!gltfFile)
         {
-            return {std::nullopt, std::string(fastgltf::getErrorMessage(gltfFile.error()))};
+            return {std::nullopt, enrichFastgltfError(std::string(fastgltf::getErrorMessage(gltfFile.error())))};
         }
 
         auto assetResult = parser.loadGltf(gltfFile.get(), path.parent_path(), kLoadOptions);
         if (assetResult.error() != fastgltf::Error::None)
         {
-            return {std::nullopt, std::string(fastgltf::getErrorMessage(assetResult.error()))};
+            return {std::nullopt, enrichFastgltfError(std::string(fastgltf::getErrorMessage(assetResult.error())))};
         }
 
         GltfAsset asset{};

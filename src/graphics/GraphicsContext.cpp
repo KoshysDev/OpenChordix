@@ -7,10 +7,13 @@
 
 #include "DisplayManager.h"
 
-#if defined(OPENCHORDIX_ENABLE_WAYLAND)
+#if defined(_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(OPENCHORDIX_ENABLE_WAYLAND)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
-#endif
+#else
 #define GLFW_EXPOSE_NATIVE_X11
+#endif
 #include <GLFW/glfw3native.h>
 #include <imgui/imgui.h>
 
@@ -309,6 +312,18 @@ bool GraphicsContext::initializeWindowed(const char *title)
 
 void GraphicsContext::updateNativeHandles()
 {
+#if defined(_WIN32)
+    void *winHandle = glfwGetWin32Window(window_);
+    if (winHandle)
+    {
+        rendererConfig_.headless = false;
+        rendererConfig_.type = bgfx::RendererType::Count;
+        rendererConfig_.nativeDisplayType = nullptr;
+        rendererConfig_.nativeWindowHandle = winHandle;
+        rendererConfig_.nativeHandleType = bgfx::NativeWindowHandleType::Default;
+        return;
+    }
+#endif
 #if defined(OPENCHORDIX_ENABLE_WAYLAND)
     void *wlDisplay = glfwGetWaylandDisplay();
     void *wlSurface = glfwGetWaylandWindow(window_);

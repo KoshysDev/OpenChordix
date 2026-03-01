@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "EmbeddedAssets.h"
 #include "render/BgfxHandle.h"
@@ -10,6 +11,31 @@ namespace openchordix::render
 {
     namespace
     {
+        std::vector<std::string_view> shaderBackendCandidates(bgfx::RendererType::Enum type)
+        {
+            switch (type)
+            {
+            case bgfx::RendererType::Vulkan:
+                return {"spirv", "glsl"};
+            case bgfx::RendererType::OpenGL:
+            case bgfx::RendererType::OpenGLES:
+                return {"glsl", "spirv"};
+            case bgfx::RendererType::Metal:
+                return {"metal", "spirv", "glsl"};
+            case bgfx::RendererType::Direct3D11:
+                return {"dxbc", "dx11", "dx12"};
+            case bgfx::RendererType::Direct3D12:
+                return {"dxbc", "dx12", "dx11"};
+            default:
+                return {"glsl", "spirv", "dxbc"};
+            }
+        }
+
+        bool hasEmbeddedShader(std::string_view path)
+        {
+            return openchordix::assets::findEmbeddedAsset(path).has_value();
+        }
+
         bgfx::ShaderHandle loadEmbeddedShader(std::string_view path)
         {
             auto asset = openchordix::assets::findEmbeddedAsset(path);
@@ -41,9 +67,9 @@ namespace openchordix::render
         case bgfx::RendererType::Metal:
             return "metal";
         case bgfx::RendererType::Direct3D11:
-            return "dx11";
+            return "dxbc";
         case bgfx::RendererType::Direct3D12:
-            return "dx12";
+            return "dxbc";
         default:
             return "glsl";
         }
@@ -51,22 +77,46 @@ namespace openchordix::render
 
     bgfx::ProgramHandle loadEmbeddedProgram(std::string_view vsName, std::string_view fsName)
     {
-        const std::string backend = shaderBackendTag(bgfx::getRendererType());
-        const std::string vsPath = "shaders/" + backend + "/" + std::string(vsName);
-        const std::string fsPath = "shaders/" + backend + "/" + std::string(fsName);
+        const auto rendererType = bgfx::getRendererType();
+        const auto backends = shaderBackendCandidates(rendererType);
 
-        bgfx::ShaderHandle vsHandle = loadEmbeddedShader(vsPath);
-        if (!bgfx::isValid(vsHandle))
+        for (std::string_view backend : backends)
         {
-            return BGFX_INVALID_HANDLE;
-        }
-        bgfx::ShaderHandle fsHandle = loadEmbeddedShader(fsPath);
-        if (!bgfx::isValid(fsHandle))
-        {
-            destroyIfValid(vsHandle);
-            return BGFX_INVALID_HANDLE;
+            const std::string vsPath = "shaders/" + std::string(backend) + "/" + std::string(vsName);
+            const std::string fsPath = "shaders/" + std::string(backend) + "/" + std::string(fsName);
+
+            // Avoid noisy logs for fallback backends that were not packaged.
+            if (!hasEmbeddedShader(vsPath) || !hasEmbeddedShader(fsPath))
+            {
+                continue;
+            }
+
+            bgfx::ShaderHandle vsHandle = loadEmbeddedShader(vsPath);
+            if (!bgfx::isValid(vsHandle))
+            {
+                continue;
+            }
+            bgfx::ShaderHandle fsHandle = loadEmbeddedShader(fsPath);
+            if (!bgfx::isValid(fsHandle))
+            {
+                destroyIfValid(vsHandle);
+                continue;
+            }
+
+            auto program = bgfx::createProgram(vsHandle, fsHandle, true);
+            if (bgfx::isValid(program))
+            {
+                return program;
+            }
         }
 
-        return bgfx::createProgram(vsHandle, fsHandle, true);
+        std::cerr << "ShaderLoader: Missing embedded shader pair for renderer "
+                  << bgfx::getRendererName(rendererType) << ". Tried backends:";
+        for (std::string_view backend : backends)
+        {
+            std::cerr << " " << backend;
+        }
+        std::cerr << std::endl;
+        return BGFX_INVALID_HANDLE;
     }
 }

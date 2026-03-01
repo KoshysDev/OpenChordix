@@ -3,6 +3,33 @@ set(BX_DIR ${BGFX_ROOT}/bx)
 set(BIMG_DIR ${BGFX_ROOT}/bimg)
 set(BGFX_DIR ${BGFX_ROOT}/bgfx)
 
+if(WIN32)
+    set(BGFX_IMGUI_FILE_LIST_INL "${BGFX_DIR}/3rdparty/dear-imgui/widgets/file_list.inl")
+    if(EXISTS "${BGFX_IMGUI_FILE_LIST_INL}")
+        file(READ "${BGFX_IMGUI_FILE_LIST_INL}" OPENCHORDIX_FILE_LIST_CONTENT)
+        set(OPENCHORDIX_FILE_LIST_OLD "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)")
+        set(OPENCHORDIX_FILE_LIST_MINGW "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)")
+        set(OPENCHORDIX_FILE_LIST_NEW "#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(_WIN32)")
+        set(OPENCHORDIX_FILE_LIST_DIRECT_IF "if (item->d_type & DT_DIR)")
+        set(OPENCHORDIX_FILE_LIST_DIRECT_IF_NEW
+"#if !defined(_WIN32) && defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)
+					if (item->d_type & DT_DIR)
+#else
+					struct stat statbuf;
+					if (0 == stat(item->d_name, &statbuf) && (statbuf.st_mode & S_IFDIR) != 0)
+#endif")
+        if(NOT OPENCHORDIX_FILE_LIST_CONTENT MATCHES "#if defined\\(_DIRENT_HAVE_D_TYPE\\) && defined\\(DT_DIR\\) && !defined\\(_WIN32\\)")
+            string(REPLACE "${OPENCHORDIX_FILE_LIST_OLD}" "${OPENCHORDIX_FILE_LIST_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_CONTENT}")
+            string(REPLACE "${OPENCHORDIX_FILE_LIST_MINGW}" "${OPENCHORDIX_FILE_LIST_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_PATCHED}")
+            string(REPLACE "${OPENCHORDIX_FILE_LIST_DIRECT_IF}" "${OPENCHORDIX_FILE_LIST_DIRECT_IF_NEW}" OPENCHORDIX_FILE_LIST_PATCHED "${OPENCHORDIX_FILE_LIST_PATCHED}")
+            if(NOT OPENCHORDIX_FILE_LIST_PATCHED STREQUAL OPENCHORDIX_FILE_LIST_CONTENT)
+                file(WRITE "${BGFX_IMGUI_FILE_LIST_INL}" "${OPENCHORDIX_FILE_LIST_PATCHED}")
+                message(STATUS "Patched bgfx dear-imgui file_list.inl for Windows dirent compatibility")
+            endif()
+        endif()
+    endif()
+endif()
+
 add_library(openchordix_renderer STATIC
     Renderer.cpp
     gltf/GltfLoader.cpp
@@ -61,7 +88,15 @@ if(OPENCHORDIX_ENABLE_WAYLAND)
 endif()
 
 # Where bgfx's makefile puts libs
-set(BGFX_LIB_DIR ${BGFX_DIR}/.build/linux64_gcc/bin)
+if(WIN32)
+    set(BGFX_LIB_DIR ${BGFX_DIR}/.build/win64_mingw-gcc/bin)
+else()
+    set(BGFX_LIB_DIR ${BGFX_DIR}/.build/linux64_gcc/bin)
+endif()
+
+if(NOT EXISTS "${BGFX_LIB_DIR}")
+    message(FATAL_ERROR "bgfx library directory not found: ${BGFX_LIB_DIR}. Build bgfx first.")
+endif()
 
 # Decide which config to use
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -69,15 +104,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         ${BGFX_LIB_DIR}/libbgfxDebug.a
         ${BGFX_LIB_DIR}/libbimgDebug.a
         ${BGFX_LIB_DIR}/libbxDebug.a
-        ${BGFX_LIB_DIR}/libbimg_decodeDebug.a
     )
+    set(BGFX_BIMG_DECODE_LIB ${BGFX_LIB_DIR}/libbimg_decodeDebug.a)
 else()
     set(BGFX_LIBS
         ${BGFX_LIB_DIR}/libbgfxRelease.a
         ${BGFX_LIB_DIR}/libbimgRelease.a
         ${BGFX_LIB_DIR}/libbxRelease.a
-        ${BGFX_LIB_DIR}/libbimg_decodeRelease.a
     )
+    set(BGFX_BIMG_DECODE_LIB ${BGFX_LIB_DIR}/libbimg_decodeRelease.a)
+endif()
+
+if(EXISTS "${BGFX_BIMG_DECODE_LIB}")
+    list(APPEND BGFX_LIBS ${BGFX_BIMG_DECODE_LIB})
 endif()
 
 # Link bgfx stack + platform libs
@@ -103,8 +142,16 @@ set(OPENCHORDIX_GENERATED_ASSET_ROOT "${CMAKE_BINARY_DIR}/generated-assets" CACH
 set(OPENCHORDIX_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(OPENCHORDIX_SHADER_OUTPUT_DIR "${OPENCHORDIX_GENERATED_ASSET_ROOT}/shaders")
 
+if(WIN32)
+    set(OPENCHORDIX_SHADERC_SEARCH_DIR ${BGFX_DIR}/.build/win64_mingw-gcc/bin)
+    set(OPENCHORDIX_SHADER_BACKENDS glsl spirv dxbc)
+else()
+    set(OPENCHORDIX_SHADERC_SEARCH_DIR ${BGFX_DIR}/.build/linux64_gcc/bin)
+    set(OPENCHORDIX_SHADER_BACKENDS glsl spirv)
+endif()
+
 find_program(OPENCHORDIX_SHADERC shadercRelease
-    PATHS ${BGFX_DIR}/.build/linux64_gcc/bin
+    PATHS ${OPENCHORDIX_SHADERC_SEARCH_DIR}
     NO_DEFAULT_PATH)
 
 add_custom_target(OpenChordixShaders)
@@ -117,13 +164,18 @@ if(OPENCHORDIX_SHADERC)
 
     function(openchordix_compile_shader out_var shader_type source_file)
         set(outputs "")
-        foreach(backend IN ITEMS glsl spirv)
+        foreach(backend IN LISTS OPENCHORDIX_SHADER_BACKENDS)
             if(backend STREQUAL "glsl")
                 set(platform linux)
                 set(profile 120)
-            else()
+            elseif(backend STREQUAL "spirv")
                 set(platform linux)
                 set(profile spirv)
+            elseif(backend STREQUAL "dxbc")
+                set(platform windows)
+                set(profile s_5_0)
+            else()
+                message(FATAL_ERROR "Unsupported shader backend '${backend}'")
             endif()
             get_filename_component(source_name "${source_file}" NAME_WE)
             set(output_dir "${OPENCHORDIX_SHADER_OUTPUT_DIR}/${backend}")

@@ -8,6 +8,13 @@
 
 #include "AppController.h"
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+extern int __argc;
+extern char **__argv;
+#endif
+
 // Global flags to signal shutdown from Ctrl+C handler
 std::atomic<bool> g_quit_flag(false);
 
@@ -53,3 +60,10 @@ int main(int argc, char **argv)
     AppController app(apis, enableDevTools);
     return app.run(g_quit_flag);
 }
+
+#if defined(_WIN32)
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+    return main(__argc, __argv);
+}
+#endif

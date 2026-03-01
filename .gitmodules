@@ -1,5 +1,5 @@
 [submodule "vcpkg"]
-	path = vcpkg
+	path = external/vcpkg
 	url = https://github.com/microsoft/vcpkg.git
 [submodule "external/bgfx"]
 	path = external/bgfx
