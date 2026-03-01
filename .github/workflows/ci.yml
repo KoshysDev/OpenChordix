@@ -230,6 +230,23 @@ jobs:
           $binDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "mingw_bin=$binDir" >> $env:GITHUB_OUTPUT
 
+      - name: Patch bgfx file_list for MinGW dirent
+        shell: pwsh
+        run: |
+          $file = "external/bgfx/3rdparty/dear-imgui/widgets/file_list.inl"
+          $content = Get-Content $file -Raw
+          $old = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)'
+          $new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)'
+          if ($content.Contains($new)) {
+            Write-Host "bgfx file_list MinGW patch already applied."
+          } elseif ($content.Contains($old)) {
+            $content = $content.Replace($old, $new)
+            Set-Content -Path $file -Value $content -NoNewline
+            Write-Host "Applied MinGW dirent compatibility patch to $file"
+          } else {
+            Write-Host "Expected pattern not found in $file; patch may already be upstream."
+          }
+
       - name: Build bgfx (Windows Release)
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
         shell: msys2 {0}

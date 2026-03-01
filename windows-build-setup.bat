@@ -85,6 +85,19 @@ if exist ".gitmodules" (
 call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
 if errorlevel 1 goto :fail
 
+set "BGFX_FILELIST=external\bgfx\3rdparty\dear-imgui\widgets\file_list.inl"
+if exist "%BGFX_FILELIST%" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$file = '%BGFX_FILELIST%';" ^
+        "$content = Get-Content $file -Raw;" ^
+        "$old = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR)';" ^
+        "$new = '#if defined(_DIRENT_HAVE_D_TYPE) && defined(DT_DIR) && !defined(__MINGW32__)';" ^
+        "if ($content.Contains($new)) { exit 0 }" ^
+        "if ($content.Contains($old)) { $content = $content.Replace($old, $new); Set-Content -Path $file -Value $content -NoNewline; exit 0 }" ^
+        "exit 0"
+    if errorlevel 1 goto :fail
+)
+
 call %MAKE_CMD% -C external/bgfx .build/projects/gmake-mingw-gcc MINGW=%MINGW_POSIX% SHELL=cmd.exe MAKESHELL=cmd.exe %BGFX_TOOL_OVERRIDES%
 if errorlevel 1 goto :fail
 
