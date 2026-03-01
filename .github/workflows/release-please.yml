@@ -26,7 +26,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  build-appimage:
+  linux-build-appimage:
     runs-on: ubuntu-latest
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
@@ -153,15 +153,49 @@ jobs:
           files: OpenChordix*.AppImage
           tag_name: ${{ needs.release-please.outputs.tag_name }}
 
-  build-windows-zip:
+  windows-build-zip:
     runs-on: windows-latest
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
+    env:
+      VCPKG_FEATURE_FLAGS: manifests
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/external/vcpkg/binary_cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Capture bgfx revisions
+        id: bgfx-revs-win
+        shell: pwsh
+        run: |
+          "bgfx=$(git -C external/bgfx rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          "bx=$(git -C external/bx rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          "bimg=$(git -C external/bimg rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+
+      - name: Cache bgfx build (Windows)
+        id: bgfx-cache-win
+        uses: actions/cache@v4
+        with:
+          path: external/bgfx/.build
+          key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs-win.outputs.bgfx }}-${{ steps.bgfx-revs-win.outputs.bx }}-${{ steps.bgfx-revs-win.outputs.bimg }}
+
+      - name: Cache vcpkg artifacts (Windows)
+        id: vcpkg-cache-win
+        uses: actions/cache@v4
+        with:
+          path: |
+            external/vcpkg/binary_cache
+            external/vcpkg/downloads
+            external/vcpkg/buildtrees
+            external/vcpkg/packages
+            build/vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+
+      - name: Ensure vcpkg cache directory
+        shell: pwsh
+        run: New-Item -Path external/vcpkg/binary_cache -ItemType Directory -Force | Out-Null
 
       - name: Setup MSYS2 (MinGW)
         uses: msys2/setup-msys2@v2

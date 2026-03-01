@@ -97,7 +97,6 @@ if errorlevel 1 (
 
 if exist "build\CMakeCache.txt" del /f /q "build\CMakeCache.txt"
 if exist "build\CMakeFiles" rmdir /s /q "build\CMakeFiles"
-if exist "build\vcpkg_installed" rmdir /s /q "build\vcpkg_installed"
 
 cmake -B build -G "MinGW Makefiles" ^
     -DCMAKE_BUILD_TYPE=Release ^
