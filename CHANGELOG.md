@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1](https://github.com/KoshysDev/OpenChordix/compare/v0.7.0...v0.7.1) (2026-03-01)
+
+
+### Bug Fixes
+
+* **ci:** fix malformed pwsh block that prevented ci workflow from loading ([817a798](https://github.com/KoshysDev/OpenChordix/commit/817a79848beae26246fbd4cb9d6bc74be05454f8))
+* **windows:** patch bgfx file_list during CMake configure for mingw dirent compatibility ([1c0ef52](https://github.com/KoshysDev/OpenChordix/commit/1c0ef52faad0be180af301369dc43029f2e8c96d))
+* **windows:** patch bgfx imgui file_list for mingw dirent compatibility ([ac7664b](https://github.com/KoshysDev/OpenChordix/commit/ac7664b5bcc42cc177fb4a11c3a519c4b858a17a))
+* **windows:** use stat fallback for imgui file_list on mingw ([78e4c24](https://github.com/KoshysDev/OpenChordix/commit/78e4c24042125637105b8f414ecb401febf0be7c))
+
 ## [0.7.0](https://github.com/KoshysDev/OpenChordix/compare/v0.6.0...v0.7.0) (2026-02-28)
 
 
