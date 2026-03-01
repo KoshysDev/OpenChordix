@@ -247,8 +247,7 @@ jobs:
             "--x-install-root=build/vcpkg_installed",
             "--x-buildtrees-root=$buildtreesRoot",
             "--x-packages-root=$packagesRoot",
-            "--x-downloads-root=$downloadsRoot",
-            "--clean-buildtrees-after-build"
+            "--x-downloads-root=$downloadsRoot"
           )
 
           & .\external\vcpkg\vcpkg.exe @installArgs
