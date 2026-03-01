@@ -234,7 +234,7 @@ jobs:
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
-          make -C external/bgfx mingw-gcc-release64 -j2
+          mingw32-make -C external/bgfx mingw-gcc-release64 -j2
 
       - name: Save bgfx build cache (Windows)
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
