@@ -5,6 +5,13 @@
 #include <algorithm>
 #include <cmath>
 
+namespace
+{
+    void silentErrorCallback(RtAudioErrorType, const std::string &)
+    {
+    }
+}
+
 // --- Static Error Callback Implementation ---
 void AudioManager::defaultErrorCallback(RtAudioErrorType type, const std::string &errorText)
 {
@@ -60,9 +67,27 @@ AudioManager::AudioManager(RtAudio::Api api) : selectedApi_(api),
 // --- Static Method: Get Available APIs ---
 std::vector<RtAudio::Api> AudioManager::getAvailableApis()
 {
-    std::vector<RtAudio::Api> apis;
-    RtAudio::getCompiledApi(apis);
-    return apis;
+    std::vector<RtAudio::Api> compiledApis;
+    RtAudio::getCompiledApi(compiledApis);
+
+    std::vector<RtAudio::Api> usableApis;
+    usableApis.reserve(compiledApis.size());
+    for (RtAudio::Api api : compiledApis)
+    {
+        try
+        {
+            RtAudio probe(api, &silentErrorCallback);
+            if (probe.getCurrentApi() == api)
+            {
+                usableApis.push_back(api);
+            }
+        }
+        catch (...)
+        {
+        }
+    }
+
+    return usableApis;
 }
 
 std::vector<unsigned int> AudioManager::getDeviceIds() const

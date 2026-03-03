@@ -31,6 +31,7 @@ public:
 
     // --- Device Info / Listing ---
     bool listDevices() const;
+    // Returns compiled APIs that can be instantiated on this machine.
     static std::vector<RtAudio::Api> getAvailableApis();
     std::vector<unsigned int> getDeviceIds() const;
     RtAudio::DeviceInfo getDeviceInfo(unsigned int deviceId) const;
