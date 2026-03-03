@@ -99,6 +99,7 @@ Desktop.ini
 
 # Log files
 *.log
+raw-job-log.txt
 
 # Doxygen output (if generated in source tree)
 /docs/html/
