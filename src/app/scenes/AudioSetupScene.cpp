@@ -8,9 +8,31 @@
 #include "ui/DeviceSelector.h"
 #include "ui/UILayout.h"
 
-AudioSetupScene::AudioSetupScene(AudioSession &audio, NoteConverter &noteConverter, AnimatedUI &ui)
-    : audio_(audio), noteConverter_(noteConverter), ui_(ui)
+namespace
 {
+    std::string makeApiLabel(RtAudio::Api api)
+    {
+        if (api == RtAudio::Api::UNSPECIFIED)
+        {
+            return "Auto Select (UNSPECIFIED)";
+        }
+        return RtAudio::getApiDisplayName(api);
+    }
+}
+
+AudioSetupScene::AudioSetupScene(AudioSession &audio,
+                                 NoteConverter &noteConverter,
+                                 AnimatedUI &ui,
+                                 const std::vector<RtAudio::Api> &apis)
+    : audio_(audio),
+      noteConverter_(noteConverter),
+      ui_(ui),
+      apiChoices_(apis)
+{
+    if (std::find(apiChoices_.begin(), apiChoices_.end(), RtAudio::Api::UNSPECIFIED) == apiChoices_.end())
+    {
+        apiChoices_.push_back(RtAudio::Api::UNSPECIFIED);
+    }
 }
 
 void AudioSetupScene::drawInputDeviceList()
@@ -52,13 +74,13 @@ void AudioSetupScene::render(float dt, const FrameInput & /*input*/, GraphicsCon
         ImGui::Spacing();
 
         ImGui::SeparatorText("Audio API");
-        std::string apiLabel = RtAudio::getApiDisplayName(audio_.api());
+        std::string apiLabel = makeApiLabel(audio_.api());
         if (ImGui::BeginCombo("##api", apiLabel.c_str()))
         {
-            for (RtAudio::Api api : {RtAudio::Api::LINUX_ALSA, RtAudio::Api::LINUX_PULSE, RtAudio::Api::UNIX_JACK, RtAudio::Api::UNSPECIFIED})
+            for (RtAudio::Api api : apiChoices_)
             {
                 bool isSelected = api == audio_.api();
-                std::string label = RtAudio::getApiDisplayName(api);
+                std::string label = makeApiLabel(api);
                 if (ImGui::Selectable(label.c_str(), isSelected))
                 {
                     if (audio_.api() != api)

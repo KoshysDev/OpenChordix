@@ -87,7 +87,7 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
     case SceneId::Intro:
         return std::make_unique<IntroScene>();
     case SceneId::AudioSetup:
-        return std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_);
+        return std::make_unique<AudioSetupScene>(audio_, noteConverter_, ui_, apis_);
     case SceneId::MainMenu:
         return std::make_unique<MainMenuScene>(ui_);
     case SceneId::TrackSelect:

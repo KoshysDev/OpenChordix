@@ -24,7 +24,7 @@ jobs:
         id: sysdeps
         run: |
           missing=0
-          for pkg in build-essential cmake git pkg-config nasm yasm libasound2-dev libgl1-mesa-dev xorg-dev; do
+          for pkg in build-essential cmake git pkg-config autoconf autoconf-archive automake libtool libltdl-dev nasm yasm libasound2-dev libpulse-dev libgl1-mesa-dev xorg-dev; do
             if ! dpkg -s "$pkg" >/dev/null 2>&1; then
               missing=1
               break
@@ -38,8 +38,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake git pkg-config \
+            autoconf autoconf-archive automake libtool libltdl-dev \
             nasm yasm \
             libasound2-dev \
+            libpulse-dev \
             libgl1-mesa-dev xorg-dev
 
       - name: Capture bgfx revisions

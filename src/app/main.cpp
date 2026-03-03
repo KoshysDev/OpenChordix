@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     std::vector<RtAudio::Api> apis = AudioManager::getAvailableApis();
     if (apis.empty())
     {
-        std::cerr << "Error: No RtAudio APIs compiled or found!" << std::endl;
+        std::cerr << "Error: No usable RtAudio APIs found. Check audio backend dependencies." << std::endl;
         return 1;
     }
 

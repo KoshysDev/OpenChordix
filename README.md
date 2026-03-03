@@ -62,8 +62,9 @@ chmod +x linux-build-setup.sh
 Arch (example):
 ```bash
 sudo pacman -Syu --needed base-devel cmake git pkgconf \
+  autoconf autoconf-archive automake libtool \
   nasm yasm \
-  alsa-lib libxinerama libxcursor libxrandr libxkbcommon \
+  alsa-lib libpulse libxinerama libxcursor libxrandr libxkbcommon \
   xorg-server-devel mesa
 ```
 
@@ -71,8 +72,10 @@ Ubuntu/Debian (example):
 ```bash
 sudo apt-get update
 sudo apt-get install -y build-essential cmake git pkg-config \
+  autoconf autoconf-archive automake libtool \
   nasm yasm \
-  libasound2-dev libxinerama-dev libxcursor-dev libxrandr-dev \
+  libasound2-dev libpulse-dev \
+  libxinerama-dev libxcursor-dev libxrandr-dev \
   libxkbcommon-dev xorg-dev libglu1-mesa-dev
 ```
 
