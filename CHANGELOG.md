@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.2](https://github.com/KoshysDev/OpenChordix/compare/v0.7.1...v0.7.2) (2026-03-03)
+
+
+### Features
+
+* **audio:** auto-detect sample rate and buffer on device selection ([7e8a13f](https://github.com/KoshysDev/OpenChordix/commit/7e8a13f31de6fe86e88eebf86eee9f66e76e12dd))
+* **audio:** show runtime-usable RtAudio APIs in setup UI ([1dc7229](https://github.com/KoshysDev/OpenChordix/commit/1dc7229c324f9bfca3d80462d644711820729c32))
+
+
+### Bug Fixes
+
+* **ci:** add libltdl-dev to linux deps ([3859eae](https://github.com/KoshysDev/OpenChordix/commit/3859eae7120d55006de202ebaf2764205d47f4fd))
+
 ## [0.7.1](https://github.com/KoshysDev/OpenChordix/compare/v0.7.0...v0.7.1) (2026-03-01)
 
 
