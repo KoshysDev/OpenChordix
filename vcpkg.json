@@ -2,7 +2,21 @@
   "name": "openchordix",
   "version-string": "0.7.1",
   "dependencies": [
-    "rtaudio",
+    {
+      "name": "rtaudio",
+      "features": [
+        "alsa",
+        "pulse"
+      ],
+      "platform": "linux"
+    },
+    {
+      "name": "rtaudio",
+      "features": [
+        "asio"
+      ],
+      "platform": "windows"
+    },
     "aubio",
     "pkgconf",
     "catch2",
