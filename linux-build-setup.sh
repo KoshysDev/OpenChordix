@@ -40,7 +40,7 @@ if command -v sudo >/dev/null 2>&1; then
     sudo apt-get update
     sudo apt-get install -y \
       build-essential cmake git pkg-config \
-      autoconf autoconf-archive automake libtool \
+      autoconf autoconf-archive automake libtool libltdl-dev \
       nasm yasm \
       libasound2-dev libpulse-dev \
       libxinerama-dev libxcursor-dev libxrandr-dev \
