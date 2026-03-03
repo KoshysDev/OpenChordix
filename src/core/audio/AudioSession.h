@@ -37,10 +37,10 @@ public:
     const std::vector<DeviceEntry> &devices() const { return devices_; }
     std::optional<unsigned int> selectedInputDevice() const { return selectedInputDevice_; }
     std::optional<unsigned int> selectedOutputDevice() const { return selectedOutputDevice_; }
-    void selectInputDevice(unsigned int id);
-    void selectOutputDevice(unsigned int id);
-    bool trySelectInputDevice(unsigned int id);
-    bool trySelectOutputDevice(unsigned int id);
+    void selectInputDevice(unsigned int id, bool autoDetectSettings = true);
+    void selectOutputDevice(unsigned int id, bool autoDetectSettings = true);
+    bool trySelectInputDevice(unsigned int id, bool autoDetectSettings = true);
+    bool trySelectOutputDevice(unsigned int id, bool autoDetectSettings = true);
     bool applyConfig(const AudioConfig &config);
     AudioConfig currentConfig() const;
     std::string status() const { return status_; }
@@ -69,4 +69,9 @@ private:
     PitchState pitch_{};
     std::vector<int> allowedSampleRates_;
     std::vector<int> allowedBufferSizes_;
+
+    const DeviceEntry *findDevice(unsigned int id) const;
+    void autoDetectPreferredStreamSettings();
+    unsigned int choosePreferredSampleRate(const RtAudio::DeviceInfo &inputInfo, const RtAudio::DeviceInfo &outputInfo) const;
+    unsigned int choosePreferredBufferFrames(unsigned int sampleRate) const;
 };

@@ -1,6 +1,21 @@
 #include "audio/AudioSession.h"
 
 #include <algorithm>
+#include <cmath>
+
+namespace
+{
+    unsigned int nearestValue(const std::vector<unsigned int> &options, unsigned int target)
+    {
+        auto it = std::min_element(options.begin(), options.end(), [target](unsigned int lhs, unsigned int rhs)
+                                   {
+                                       long long dl = std::llabs(static_cast<long long>(lhs) - static_cast<long long>(target));
+                                       long long dr = std::llabs(static_cast<long long>(rhs) - static_cast<long long>(target));
+                                       return dl < dr;
+                                   });
+        return it != options.end() ? *it : 0u;
+    }
+}
 
 AudioSession::AudioSession(std::vector<int> allowedSampleRates, std::vector<int> allowedBufferSizes)
     : allowedSampleRates_(std::move(allowedSampleRates)), allowedBufferSizes_(std::move(allowedBufferSizes))
@@ -74,6 +89,8 @@ void AudioSession::refreshDevices(RtAudio::Api api)
             selectedOutputDevice_ = firstOutput->id;
         }
     }
+
+    autoDetectPreferredStreamSettings();
 
     if (devices_.empty())
     {
@@ -190,35 +207,43 @@ void AudioSession::updatePitch(NoteConverter &noteConverter)
     }
 }
 
-void AudioSession::selectInputDevice(unsigned int id)
+void AudioSession::selectInputDevice(unsigned int id, bool autoDetectSettings)
 {
     selectedInputDevice_ = id;
+    if (autoDetectSettings)
+    {
+        autoDetectPreferredStreamSettings();
+    }
 }
 
-void AudioSession::selectOutputDevice(unsigned int id)
+void AudioSession::selectOutputDevice(unsigned int id, bool autoDetectSettings)
 {
     selectedOutputDevice_ = id;
+    if (autoDetectSettings)
+    {
+        autoDetectPreferredStreamSettings();
+    }
 }
 
-bool AudioSession::trySelectInputDevice(unsigned int id)
+bool AudioSession::trySelectInputDevice(unsigned int id, bool autoDetectSettings)
 {
     auto it = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
                            { return entry.id == id && entry.info.inputChannels > 0; });
     if (it != devices_.end())
     {
-        selectInputDevice(id);
+        selectInputDevice(id, autoDetectSettings);
         return true;
     }
     return false;
 }
 
-bool AudioSession::trySelectOutputDevice(unsigned int id)
+bool AudioSession::trySelectOutputDevice(unsigned int id, bool autoDetectSettings)
 {
     auto it = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
                            { return entry.id == id && entry.info.outputChannels > 0; });
     if (it != devices_.end())
     {
-        selectOutputDevice(id);
+        selectOutputDevice(id, autoDetectSettings);
         return true;
     }
     return false;
@@ -226,17 +251,21 @@ bool AudioSession::trySelectOutputDevice(unsigned int id)
 
 bool AudioSession::applyConfig(const AudioConfig &config)
 {
-    if (config.sampleRate > 0)
-    {
-        setSampleRate(config.sampleRate);
-    }
-    if (config.bufferFrames > 0)
-    {
-        setBufferFrames(config.bufferFrames);
-    }
+    bool inputOk = config.inputDeviceId != 0 && trySelectInputDevice(config.inputDeviceId, false);
+    bool outputOk = config.outputDeviceId != 0 && trySelectOutputDevice(config.outputDeviceId, false);
 
-    bool inputOk = config.inputDeviceId != 0 && trySelectInputDevice(config.inputDeviceId);
-    bool outputOk = config.outputDeviceId != 0 && trySelectOutputDevice(config.outputDeviceId);
+    if (inputOk && outputOk)
+    {
+        const DeviceEntry *input = findDevice(*selectedInputDevice_);
+        const DeviceEntry *output = findDevice(*selectedOutputDevice_);
+        if (input && output)
+        {
+            unsigned int detectedRate = choosePreferredSampleRate(input->info, output->info);
+            unsigned int detectedBuffer = choosePreferredBufferFrames(detectedRate);
+            sampleRate_ = config.sampleRate > 0 ? config.sampleRate : detectedRate;
+            bufferFrames_ = config.bufferFrames > 0 ? config.bufferFrames : detectedBuffer;
+        }
+    }
 
     return inputOk && outputOk && config.isUsable();
 }
@@ -250,4 +279,120 @@ AudioConfig AudioSession::currentConfig() const
     config.sampleRate = sampleRate_;
     config.bufferFrames = bufferFrames_;
     return config;
+}
+
+const DeviceEntry *AudioSession::findDevice(unsigned int id) const
+{
+    auto it = std::find_if(devices_.begin(), devices_.end(), [&](const DeviceEntry &entry)
+                           { return entry.id == id; });
+    return it != devices_.end() ? &(*it) : nullptr;
+}
+
+void AudioSession::autoDetectPreferredStreamSettings()
+{
+    if (!selectedInputDevice_.has_value() || !selectedOutputDevice_.has_value())
+    {
+        return;
+    }
+
+    const DeviceEntry *input = findDevice(*selectedInputDevice_);
+    const DeviceEntry *output = findDevice(*selectedOutputDevice_);
+    if (!input || !output)
+    {
+        return;
+    }
+
+    sampleRate_ = choosePreferredSampleRate(input->info, output->info);
+    bufferFrames_ = choosePreferredBufferFrames(sampleRate_);
+}
+
+unsigned int AudioSession::choosePreferredSampleRate(const RtAudio::DeviceInfo &inputInfo, const RtAudio::DeviceInfo &outputInfo) const
+{
+    if (allowedSampleRates_.empty())
+    {
+        return sampleRate_;
+    }
+
+    auto supportsRate = [](const RtAudio::DeviceInfo &info, unsigned int rate)
+    {
+        if (info.sampleRates.empty())
+        {
+            return true;
+        }
+        return std::find(info.sampleRates.begin(), info.sampleRates.end(), rate) != info.sampleRates.end();
+    };
+
+    std::vector<unsigned int> allAllowed;
+    allAllowed.reserve(allowedSampleRates_.size());
+    std::vector<unsigned int> compatible;
+    compatible.reserve(allowedSampleRates_.size());
+
+    for (int rate : allowedSampleRates_)
+    {
+        if (rate <= 0)
+        {
+            continue;
+        }
+        unsigned int r = static_cast<unsigned int>(rate);
+        allAllowed.push_back(r);
+        if (supportsRate(inputInfo, r) && supportsRate(outputInfo, r))
+        {
+            compatible.push_back(r);
+        }
+    }
+
+    const std::vector<unsigned int> &pool = compatible.empty() ? allAllowed : compatible;
+    if (pool.empty())
+    {
+        return sampleRate_;
+    }
+
+    auto contains = [](const std::vector<unsigned int> &values, unsigned int target)
+    {
+        return std::find(values.begin(), values.end(), target) != values.end();
+    };
+
+    if (outputInfo.preferredSampleRate > 0)
+    {
+        return nearestValue(pool, outputInfo.preferredSampleRate);
+    }
+    if (inputInfo.preferredSampleRate > 0)
+    {
+        return nearestValue(pool, inputInfo.preferredSampleRate);
+    }
+    if (contains(pool, 48000u))
+    {
+        return 48000u;
+    }
+    if (contains(pool, 44100u))
+    {
+        return 44100u;
+    }
+    return pool.front();
+}
+
+unsigned int AudioSession::choosePreferredBufferFrames(unsigned int sampleRate) const
+{
+    if (allowedBufferSizes_.empty())
+    {
+        return bufferFrames_;
+    }
+
+    std::vector<unsigned int> allAllowed;
+    allAllowed.reserve(allowedBufferSizes_.size());
+    for (int frames : allowedBufferSizes_)
+    {
+        if (frames > 0)
+        {
+            allAllowed.push_back(static_cast<unsigned int>(frames));
+        }
+    }
+
+    if (allAllowed.empty())
+    {
+        return bufferFrames_;
+    }
+
+    unsigned int preferred = sampleRate > 48000u ? 512u : 256u;
+    return nearestValue(allAllowed, preferred);
 }
