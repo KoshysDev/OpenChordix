@@ -10,6 +10,7 @@ public:
     {
         None,
         OpenTrackSelect,
+        OpenCreateSong,
         OpenTuner,
         OpenSettings
     };

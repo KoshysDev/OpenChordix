@@ -91,7 +91,11 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
     case SceneId::MainMenu:
         return std::make_unique<MainMenuScene>(ui_);
     case SceneId::TrackSelect:
-        return std::make_unique<TrackSelectScene>(ui_);
+    {
+        const bool startInCreateMode = openCreateSongOnTrackSelect_;
+        openCreateSongOnTrackSelect_ = false;
+        return std::make_unique<TrackSelectScene>(ui_, startInCreateMode);
+    }
     case SceneId::Tuner:
         return std::make_unique<TunerScene>(audio_, ui_);
     case SceneId::Settings:
@@ -240,6 +244,10 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
                     switchTo(SceneId::Tuner);
                     break;
                 case MainMenuScene::Action::OpenTrackSelect:
+                    switchTo(SceneId::TrackSelect);
+                    break;
+                case MainMenuScene::Action::OpenCreateSong:
+                    openCreateSongOnTrackSelect_ = true;
                     switchTo(SceneId::TrackSelect);
                     break;
                 case MainMenuScene::Action::OpenSettings:

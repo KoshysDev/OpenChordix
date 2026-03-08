@@ -51,4 +51,5 @@ private:
     std::vector<RtAudio::Api> apis_;
     openchordix::devtools::DevConsole devConsole_;
     TestSceneModelController testSceneModel_{};
+    bool openCreateSongOnTrackSelect_ = false;
 };

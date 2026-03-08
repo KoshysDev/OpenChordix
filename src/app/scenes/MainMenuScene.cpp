@@ -43,7 +43,9 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         const float buttonHeight = 64.0f;
         const float spacing = 18.0f;
         const float headerHeight = 60.0f;
-        const float contentHeight = headerHeight + 4.0f * (buttonHeight + spacing) + spacing;
+        const float introSpacing = 10.0f;
+        const float buttonCount = 5.0f;
+        const float contentHeight = headerHeight + introSpacing + buttonCount * buttonHeight + (buttonCount - 1.0f) * spacing;
         ImVec2 start((screen.x - contentWidth) * 0.5f, (screen.y - contentHeight) * 0.5f);
         ImGui::SetCursorPos(start);
         ImGui::BeginGroup();
@@ -56,6 +58,11 @@ void MainMenuScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsC
         if (ui_.button("Play", buttonSize))
         {
             pendingAction_ = Action::OpenTrackSelect;
+        }
+        ImGui::Dummy(ImVec2(0.0f, spacing));
+        if (ui_.button("Create Song", buttonSize))
+        {
+            pendingAction_ = Action::OpenCreateSong;
         }
         ImGui::Dummy(ImVec2(0.0f, spacing));
         if (ui_.button("Tuner", buttonSize))
