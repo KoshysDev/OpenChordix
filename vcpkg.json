@@ -21,6 +21,7 @@
     "pkgconf",
     "catch2",
     "glfw3",
-    "fastgltf"
+    "fastgltf",
+    "nlohmann-json"
   ]
 }

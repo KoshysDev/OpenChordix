@@ -1,4 +1,6 @@
 add_library(openchordix_core STATIC
+    AppPaths.cpp
+    AppPaths.h
     audio/AudioManager.cpp
     audio/AudioManager.h
     audio/AudioConfig.h
@@ -10,6 +12,12 @@ add_library(openchordix_core STATIC
     NoteConverter.h
     PitchDetector.cpp
     PitchDetector.h
+    track/TrackCatalogFile.cpp
+    track/TrackCatalogFile.h
+    track/TrackCatalog.h
+    track/TrackAudioDuration.cpp
+    track/TrackAudioDuration.h
+    track/TrackTypes.h
 )
 
 target_include_directories(openchordix_core PUBLIC
@@ -19,9 +27,11 @@ target_include_directories(openchordix_core PUBLIC
 if(WIN32)
     find_package(Aubio CONFIG REQUIRED)
     find_package(RtAudio CONFIG REQUIRED)
+    find_package(nlohmann_json CONFIG REQUIRED)
 else()
     find_package(Aubio QUIET)
     find_package(RtAudio QUIET)
+    find_package(nlohmann_json CONFIG REQUIRED)
 
     if(NOT RtAudio_FOUND AND NOT TARGET RtAudio::rtaudio)
         find_package(PkgConfig REQUIRED)
@@ -38,6 +48,7 @@ endif()
 # --- Link Libraries ---
 target_link_libraries(openchordix_core PUBLIC
     Threads::Threads
+    nlohmann_json::nlohmann_json
 
     # RtAudio
     $<$<TARGET_EXISTS:RtAudio::rtaudio>:RtAudio::rtaudio>
