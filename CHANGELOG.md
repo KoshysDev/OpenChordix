@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.3](https://github.com/KoshysDev/OpenChordix/compare/v0.7.2...v0.7.3) (2026-04-05)
+
+
+### Features
+
+* **core:** add AppPaths and track audio duration reader ([c5d76bc](https://github.com/KoshysDev/OpenChordix/commit/c5d76bcceb04837faaf480c00bd4cfbf61f9b41e))
+* **main-menu:** add Create Song action ([78cfe00](https://github.com/KoshysDev/OpenChordix/commit/78cfe00bbb011d5d9902a362a57f196ddc3e968e))
+* **track:** add file backed TrackCatalogFile with songs.db/chart.ocx support ([d273111](https://github.com/KoshysDev/OpenChordix/commit/d273111f91e2342cdb2e15d51f48a4545a54ac8b))
+
+
+### Bug Fixes
+
+* **audio:** make device lookup failures explicit in audio flows ([32f54ec](https://github.com/KoshysDev/OpenChordix/commit/32f54ece8f3a340374d73257d11d6b650f5dfef6))
+
 ## [0.7.2](https://github.com/KoshysDev/OpenChordix/compare/v0.7.1...v0.7.2) (2026-03-03)
 
 

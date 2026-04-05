@@ -1,6 +1,6 @@
 {
   "name": "openchordix",
-  "version-string": "0.7.2",
+  "version-string": "0.7.3",
   "dependencies": [
     {
       "name": "rtaudio",
