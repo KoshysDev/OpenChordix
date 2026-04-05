@@ -52,7 +52,10 @@ void AudioSession::refreshDevices(RtAudio::Api api)
 
     for (unsigned int id : manager_->getDeviceIds())
     {
-        devices_.push_back(DeviceEntry{id, manager_->getDeviceInfo(id)});
+        if (auto info = manager_->getDeviceInfo(id))
+        {
+            devices_.push_back(DeviceEntry{id, *info});
+        }
     }
 
     unsigned int defaultInput = manager_->getDefaultInputDeviceId();
@@ -110,9 +113,16 @@ void AudioSession::refreshDevices(RtAudio::Api api)
     }
     else
     {
-        RtAudio::DeviceInfo inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
-        RtAudio::DeviceInfo outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
-        status_ = "Ready. Input: " + inputInfo.name + " / Output: " + outputInfo.name;
+        const auto inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
+        const auto outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
+        if (!inputInfo || !outputInfo)
+        {
+            status_ = "Ready, but one or more selected devices could not be inspected.";
+        }
+        else
+        {
+            status_ = "Ready. Input: " + inputInfo->name + " / Output: " + outputInfo->name;
+        }
     }
 }
 
@@ -135,14 +145,19 @@ bool AudioSession::startMonitoring()
         return false;
     }
 
-    RtAudio::DeviceInfo inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
-    RtAudio::DeviceInfo outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
-    if (inputInfo.inputChannels == 0)
+    const auto inputInfo = manager_->getDeviceInfo(*selectedInputDevice_);
+    const auto outputInfo = manager_->getDeviceInfo(*selectedOutputDevice_);
+    if (!inputInfo || !outputInfo)
+    {
+        status_ = "Unable to read the selected device configuration.";
+        return false;
+    }
+    if (inputInfo->inputChannels == 0)
     {
         status_ = "Selected device has no input channels.";
         return false;
     }
-    if (outputInfo.outputChannels == 0)
+    if (outputInfo->outputChannels == 0)
     {
         status_ = "Selected output has no output channels.";
         return false;
@@ -166,7 +181,7 @@ bool AudioSession::startMonitoring()
         return false;
     }
 
-    status_ = "Monitoring " + inputInfo.name + " -> " + outputInfo.name;
+    status_ = "Monitoring " + inputInfo->name + " -> " + outputInfo->name;
     monitoring_ = true;
     return true;
 }

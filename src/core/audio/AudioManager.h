@@ -6,6 +6,7 @@
 #include <memory>
 #include <functional>
 #include <atomic>
+#include <optional>
 #include <rtaudio/RtAudio.h>
 
 #include "PitchDetector.h"
@@ -34,7 +35,7 @@ public:
     // Returns compiled APIs that can be instantiated on this machine.
     static std::vector<RtAudio::Api> getAvailableApis();
     std::vector<unsigned int> getDeviceIds() const;
-    RtAudio::DeviceInfo getDeviceInfo(unsigned int deviceId) const;
+    std::optional<RtAudio::DeviceInfo> getDeviceInfo(unsigned int deviceId) const;
 
     // --- Stream Management ---
     bool openMonitoringStream(unsigned int inputDeviceId,
