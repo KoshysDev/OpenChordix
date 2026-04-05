@@ -2,53 +2,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 TrackCatalogMemory::TrackCatalogMemory()
 {
-    tracks_.push_back(TrackInfo{
-        "Master of Puppets",
-        "Metallica",
-        "Thrash Metal",
-        "Raine",
-        212,
-        "8:36",
-        {{"Lead Guitar"}, {"Rhythm Guitar"}, {"Bass"}}});
-
-    tracks_.push_back(TrackInfo{
-        "Back in Black",
-        "AC/DC",
-        "Rock",
-        "Lux",
-        94,
-        "4:15",
-        {{"Lead Guitar"}, {"Rhythm Guitar"}, {"Bass"}}});
-
-    tracks_.push_back(TrackInfo{
-        "Painkiller",
-        "Judas Priest",
-        "Heavy Metal",
-        "Harper",
-        188,
-        "6:06",
-        {{"Lead Guitar"}, {"Rhythm Guitar"}, {"Bass"}}});
-
-    tracks_.push_back(TrackInfo{
-        "Paranoid",
-        "Black Sabbath",
-        "Heavy metal",
-        "Aster",
-        163,
-        "2:48",
-        {{"Lead Guitar"}, {"Rhythm Guitar"}, {"Bass"}}});
-
-    tracks_.push_back(TrackInfo{
-        "Holy Wars... The Punishment Due",
-        "Megadeth",
-        "Thrash Metal",
-        "Mara",
-        178,
-        "6:36",
-        {{"Lead Guitar"}, {"Rhythm Guitar"}, {"Bass"}}});
 }
 
 const std::vector<TrackInfo> &TrackCatalogMemory::tracks() const
@@ -83,4 +40,56 @@ std::string TrackCatalogMemory::lowerCopy(const std::string &value)
     std::transform(out.begin(), out.end(), out.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return out;
+}
+
+bool TrackCatalogMemory::reload()
+{
+    return true;
+}
+
+bool TrackCatalogMemory::addTrack(const TrackInfo &track)
+{
+    tracks_.push_back(track);
+    return true;
+}
+
+bool TrackCatalogMemory::updateTrack(std::string_view id, const TrackInfo &track)
+{
+    const auto it = std::find_if(
+        tracks_.begin(),
+        tracks_.end(),
+        [&](const TrackInfo &existing)
+        {
+            return existing.id == id;
+        });
+    if (it == tracks_.end())
+    {
+        return false;
+    }
+    TrackInfo replacement = track;
+    replacement.id = std::string(id);
+    *it = std::move(replacement);
+    return true;
+}
+
+bool TrackCatalogMemory::removeTrack(std::string_view id)
+{
+    const auto it = std::find_if(
+        tracks_.begin(),
+        tracks_.end(),
+        [&](const TrackInfo &track)
+        {
+            return track.id == id;
+        });
+    if (it == tracks_.end())
+    {
+        return false;
+    }
+    tracks_.erase(it);
+    return true;
+}
+
+const std::filesystem::path &TrackCatalogMemory::storagePath() const
+{
+    return storagePath_;
 }

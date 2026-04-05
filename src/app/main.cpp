@@ -6,7 +6,13 @@
 
 #include <rtaudio/RtAudio.h>
 
-#include "AppController.h"
+#include "AnimatedUI.h"
+#include "ConfigStore.h"
+#include "GraphicsContext.h"
+#include "GraphicsFlow.h"
+#include "NoteConverter.h"
+#include "audio/AudioSession.h"
+#include "console/ConsoleFlow.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -30,6 +36,42 @@ void signalHandler(int signal)
         }
         std::cout << "\nCtrl+C detected, signaling shutdown..." << std::endl;
         g_quit_flag.store(true);
+    }
+}
+
+namespace
+{
+    int runApplication(const std::vector<RtAudio::Api> &apis,
+                       bool enableDevTools,
+                       std::atomic<bool> &quitFlag)
+    {
+        GraphicsContext graphicsContext;
+        AudioSession audioSession({22050, 32000, 44100, 48000, 88200, 96000},
+                                  {64, 128, 256, 512, 1024, 2048});
+        ConfigStore configStore;
+        NoteConverter noteConverter;
+        AnimatedUI ui;
+
+        const bool windowOk = graphicsContext.initializeWindowed("OpenChordix");
+        const bool rendererOk = windowOk && graphicsContext.initializeRenderer();
+        if (!windowOk || !rendererOk)
+        {
+            std::cerr << "GUI bootstrap failed ("
+                      << (windowOk ? "renderer init failed" : "window init failed")
+                      << "); falling back to console mode.\n";
+            ConsoleFlow console(apis, noteConverter);
+            return console.run(quitFlag);
+        }
+
+        GraphicsFlow graphics(
+            graphicsContext,
+            audioSession,
+            configStore,
+            noteConverter,
+            ui,
+            apis,
+            enableDevTools);
+        return graphics.run(quitFlag);
     }
 }
 
@@ -57,8 +99,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    AppController app(apis, enableDevTools);
-    return app.run(g_quit_flag);
+    return runApplication(apis, enableDevTools, g_quit_flag);
 }
 
 #if defined(_WIN32)

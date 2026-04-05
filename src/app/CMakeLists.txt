@@ -1,6 +1,5 @@
 add_executable(OpenChordix
     main.cpp
-    AppController.cpp
     console/ConsoleFlow.cpp
     console/ConsolePrompter.cpp
     platform/ImGuiPlatformBridge.cpp
@@ -18,7 +17,6 @@ add_executable(OpenChordix
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
     scenes/TestScene.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/track/TrackCatalogMemory.cpp
     ${CMAKE_SOURCE_DIR}/src/core/score/ScoreServiceMemory.cpp
     settings/GraphicsConfig.cpp
     settings/DisplaySettingsController.cpp
@@ -65,6 +63,7 @@ set(BIMG_DIR ${BGFX_ROOT}/bimg)
 set(BGFX_DIR ${BGFX_ROOT}/bgfx)
 
 target_include_directories(OpenChordix PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_SOURCE_DIR}/src/app
     ${CMAKE_SOURCE_DIR}/src/app/scenes

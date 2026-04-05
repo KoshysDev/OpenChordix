@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stb/stb_image.h>
 
-#include "EmbeddedAssets.h"
+#include "app/EmbeddedAssets.h"
 
 IntroScene::IntroScene(float durationSec) : duration_(durationSec) {}
 

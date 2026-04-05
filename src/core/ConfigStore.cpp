@@ -1,27 +1,12 @@
 #include "ConfigStore.h"
 
-#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <system_error>
 
-namespace
-{
-    std::filesystem::path resolveExecutableDirectory()
-    {
-#if defined(__linux__)
-        std::error_code ec;
-        auto exe = std::filesystem::read_symlink("/proc/self/exe", ec);
-        if (!ec)
-        {
-            return exe.parent_path();
-        }
-#endif
-        return std::filesystem::current_path();
-    }
-}
+#include "AppPaths.h"
 
-ConfigStore::ConfigStore() : audioConfigPath_(resolveExecutableDirectory() / "audio.conf") {}
+ConfigStore::ConfigStore() : audioConfigPath_(openchordix::core::executableDirectory() / "audio.conf") {}
 
 std::optional<AudioConfig> ConfigStore::loadAudioConfig() const
 {

@@ -4,7 +4,11 @@
       "release-type": "simple",
       "bump-patch-for-minor-pre-major": true,
       "extra-files": [
-        "vcpkg.json"
+        {
+          "type": "json",
+          "path": "vcpkg.json",
+          "jsonpath": "$[\"version-string\"]"
+        }
       ]
     }
   }

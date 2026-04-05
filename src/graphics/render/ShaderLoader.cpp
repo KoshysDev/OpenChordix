@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "EmbeddedAssets.h"
+#include "app/EmbeddedAssets.h"
 #include "render/BgfxHandle.h"
 
 namespace openchordix::render

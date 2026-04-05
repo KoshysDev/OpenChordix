@@ -78,24 +78,20 @@ std::optional<unsigned int> ConsolePrompter::chooseDevice(AudioManager &manager,
             continue;
         }
 
-        RtAudio::DeviceInfo info{};
-        try
+        const auto info = manager.getDeviceInfo(deviceId);
+        if (!info)
         {
-            info = manager.getDeviceInfo(deviceId);
-        }
-        catch (const std::runtime_error &e)
-        {
-            std::cerr << "Error validating device ID: " << e.what() << std::endl;
-            return std::nullopt;
+            std::cerr << "Unable to inspect device ID " << deviceId << "." << std::endl;
+            continue;
         }
 
-        if ((info.name.empty() && info.inputChannels == 0 && info.outputChannels == 0) || channelCount(info, role) == 0)
+        if ((info->name.empty() && info->inputChannels == 0 && info->outputChannels == 0) || channelCount(*info, role) == 0)
         {
             std::cerr << "Device ID " << deviceId << " is not a valid " << roleName << " device." << std::endl;
             continue;
         }
 
-        std::cout << "Selected " << roleName << " device: " << info.name << " (ID: " << deviceId << ")" << std::endl;
+        std::cout << "Selected " << roleName << " device: " << info->name << " (ID: " << deviceId << ")" << std::endl;
         return deviceId;
     }
 }

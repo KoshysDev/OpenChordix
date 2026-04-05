@@ -1,6 +1,6 @@
 {
   "name": "openchordix",
-  "version-string": "0.7.1",
+  "version-string": "0.7.2",
   "dependencies": [
     {
       "name": "rtaudio",
@@ -21,6 +21,7 @@
     "pkgconf",
     "catch2",
     "glfw3",
-    "fastgltf"
+    "fastgltf",
+    "nlohmann-json"
   ]
 }

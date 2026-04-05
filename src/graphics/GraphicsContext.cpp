@@ -38,7 +38,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include "EmbeddedAssets.h"
+#include "app/EmbeddedAssets.h"
 
 namespace
 {

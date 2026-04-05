@@ -51,6 +51,7 @@ target_include_directories(openchordix_renderer PUBLIC
 
 # Headers for bgfx stack
 target_include_directories(openchordix_renderer PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/app
     ${BGFX_DIR}/include
     ${BX_DIR}/include

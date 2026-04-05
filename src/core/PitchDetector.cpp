@@ -10,19 +10,12 @@ PitchDetector::PitchDetector(uint_t bufferSize, uint_t hopSize, uint_t sampleRat
       config_hop_size_(hopSize),
       config_sample_rate_(sampleRate)
 {
-    // --- Input Validation ---
     if (bufferSize == 0 || hopSize == 0 || sampleRate == 0)
     {
         throw std::runtime_error("PitchDetector: Invalid zero parameter (bufferSize, hopSize, or sampleRate).");
     }
 
-    std::cout << "Initializing Aubio pitch detection (" << method << "):"
-              << " BufSize=" << bufferSize
-              << " HopSize=" << hopSize
-              << " SampleRate=" << sampleRate << std::endl;
-
-    // --- Create Aubio Objects ---
-    pitch_object_ = new_aubio_pitch("schmitt", bufferSize, hopSize, sampleRate);
+    pitch_object_ = new_aubio_pitch(method.c_str(), bufferSize, hopSize, sampleRate);
 
     if (!pitch_object_)
     {
@@ -32,7 +25,7 @@ PitchDetector::PitchDetector(uint_t bufferSize, uint_t hopSize, uint_t sampleRat
     aubio_input_buffer_ = new_fvec(hopSize);
     if (!aubio_input_buffer_)
     {
-        del_aubio_pitch(pitch_object_); // Clean up
+        del_aubio_pitch(pitch_object_);
         throw std::runtime_error("PitchDetector: Failed to create Aubio input buffer (size " + std::to_string(hopSize) + ").");
     }
     fvec_zeros(aubio_input_buffer_);
@@ -45,13 +38,10 @@ PitchDetector::PitchDetector(uint_t bufferSize, uint_t hopSize, uint_t sampleRat
         throw std::runtime_error("PitchDetector: Failed to create Aubio pitch output buffer.");
     }
     fvec_zeros(aubio_pitch_output_);
-
-    std::cout << "Aubio PitchDetector initialized successfully." << std::endl;
 }
 
 PitchDetector::~PitchDetector()
 {
-    std::cout << "Destroying PitchDetector and Aubio objects..." << std::endl;
     if (pitch_object_)
     {
         del_aubio_pitch(pitch_object_);
@@ -66,7 +56,6 @@ PitchDetector::~PitchDetector()
     }
 }
 
-// Process buffer from RtAudio
 void PitchDetector::process(const float *inputBuffer, uint_t numFrames, uint_t inputChannelCount)
 {
     if (!pitch_object_ || !aubio_input_buffer_ || !aubio_pitch_output_ || inputBuffer == nullptr)
@@ -84,7 +73,6 @@ void PitchDetector::process(const float *inputBuffer, uint_t numFrames, uint_t i
     if (inputChannelCount < 1)
         return;
 
-    // Copy data from the 1 channel to Aubio input fvec
     for (uint_t i = 0; i < numFrames; ++i)
     {
         aubio_input_buffer_->data[i] = inputBuffer[i * inputChannelCount];
@@ -92,16 +80,13 @@ void PitchDetector::process(const float *inputBuffer, uint_t numFrames, uint_t i
 
     aubio_pitch_do(pitch_object_, aubio_input_buffer_, aubio_pitch_output_);
 
-    // Get the pitch result(Hz)
     float detected_pitch = aubio_pitch_output_->data[0];
 
-    // Exponential smoothing to reduce jitter while staying responsive
     if (detected_pitch > 0.0f)
     {
         if (has_smoothed_)
         {
             float semitone_jump = 12.0f * std::log2(detected_pitch / std::max(1e-6f, smoothed_pitch_hz_));
-            // If the jump is extreme (e.g., octave flip), snap to new value to avoid lag
             if (std::fabs(semitone_jump) > 12.0f)
             {
                 smoothed_pitch_hz_ = detected_pitch;

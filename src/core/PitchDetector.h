@@ -12,7 +12,6 @@ public:
 
     ~PitchDetector();
 
-    // Prevent copying and assignment
     PitchDetector(const PitchDetector &) = delete;
     PitchDetector &operator=(const PitchDetector &) = delete;
 
@@ -29,7 +28,6 @@ private:
     float smoothed_pitch_hz_ = 0.0f;
     bool has_smoothed_ = false;
 
-    // Configuration stored
     uint_t config_buffer_size_;
     uint_t config_hop_size_;
     uint_t config_sample_rate_;

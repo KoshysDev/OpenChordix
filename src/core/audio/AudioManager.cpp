@@ -12,7 +12,6 @@ namespace
     }
 }
 
-// --- Static Error Callback Implementation ---
 void AudioManager::defaultErrorCallback(RtAudioErrorType type, const std::string &errorText)
 {
     if (type == RTAUDIO_WARNING)
@@ -25,13 +24,9 @@ void AudioManager::defaultErrorCallback(RtAudioErrorType type, const std::string
     }
 }
 
-// --- Constructor Implementation ---
 AudioManager::AudioManager(RtAudio::Api api) : selectedApi_(api),
                                                actualApi_(RtAudio::Api::UNSPECIFIED)
 {
-    std::cout << "Attempting to initialize RtAudio with requested API: "
-              << RtAudio::getApiDisplayName(selectedApi_) << " (" << selectedApi_ << ")" << std::endl;
-
     try
     {
         audio_ = std::make_unique<RtAudio>(selectedApi_, &AudioManager::defaultErrorCallback);
@@ -43,8 +38,6 @@ AudioManager::AudioManager(RtAudio::Api api) : selectedApi_(api),
                       << ") was not available or chosen. Using API: "
                       << RtAudio::getApiDisplayName(actualApi_) << std::endl;
         }
-        std::cout << "RtAudio initialized successfully using API: "
-                  << RtAudio::getApiDisplayName(actualApi_) << std::endl;
     }
     catch (const std::exception &e)
     {
@@ -64,7 +57,6 @@ AudioManager::AudioManager(RtAudio::Api api) : selectedApi_(api),
     }
 }
 
-// --- Static Method: Get Available APIs ---
 std::vector<RtAudio::Api> AudioManager::getAvailableApis()
 {
     std::vector<RtAudio::Api> compiledApis;
@@ -82,8 +74,17 @@ std::vector<RtAudio::Api> AudioManager::getAvailableApis()
                 usableApis.push_back(api);
             }
         }
+        catch (const std::exception &e)
+        {
+            AudioManager::defaultErrorCallback(
+                RTAUDIO_SYSTEM_ERROR,
+                "Skipping unusable audio API " + RtAudio::getApiDisplayName(api) + ": " + e.what());
+        }
         catch (...)
         {
+            AudioManager::defaultErrorCallback(
+                RTAUDIO_SYSTEM_ERROR,
+                "Skipping unusable audio API " + RtAudio::getApiDisplayName(api) + ": unknown error.");
         }
     }
 
@@ -109,7 +110,6 @@ std::vector<unsigned int> AudioManager::getDeviceIds() const
     }
 }
 
-// --- Device Listing Method Implementation ---
 bool AudioManager::listDevices() const
 {
     if (!audio_)
@@ -172,22 +172,18 @@ bool AudioManager::listDevices() const
         }
         catch (const std::exception &e)
         {
-            // Catch exceptions specifically from getDeviceInfo
             AudioManager::defaultErrorCallback(RTAUDIO_SYSTEM_ERROR, "Exception getting info for device " + std::to_string(id) + ": " + e.what());
-            // Continue trying to list other devices
         }
     }
     std::cout << std::endl;
 
-    // Print default device IDs reported by the current API context
     std::cout << "Default Output Device ID (for this API): " << getDefaultOutputDeviceId() << std::endl;
     std::cout << "Default Input Device ID (for this API): " << getDefaultInputDeviceId() << std::endl;
 
     return devices_listed;
 }
 
-// --- Implementation for getDeviceInfo ---
-RtAudio::DeviceInfo AudioManager::getDeviceInfo(unsigned int deviceId) const
+std::optional<RtAudio::DeviceInfo> AudioManager::getDeviceInfo(unsigned int deviceId) const
 {
     if (!audio_)
     {
@@ -197,15 +193,22 @@ RtAudio::DeviceInfo AudioManager::getDeviceInfo(unsigned int deviceId) const
     {
         return audio_->getDeviceInfo(deviceId);
     }
+    catch (const std::exception &e)
+    {
+        defaultErrorCallback(
+            RTAUDIO_INVALID_DEVICE,
+            "Failed to get device info for ID " + std::to_string(deviceId) + ": " + e.what());
+        return std::nullopt;
+    }
     catch (...)
-    { // Catch potential RtAudio errors
-        defaultErrorCallback(RTAUDIO_INVALID_DEVICE, "Failed to get device info for ID: " + std::to_string(deviceId));
-        // Return an empty/default DeviceInfo struct to indicate failure
-        return RtAudio::DeviceInfo{}; // Default constructor initializes members appropriately
+    {
+        defaultErrorCallback(
+            RTAUDIO_INVALID_DEVICE,
+            "Failed to get device info for ID " + std::to_string(deviceId) + ": unknown error.");
+        return std::nullopt;
     }
 }
 
-// --- Static Audio Callback Implementation ---
 int AudioManager::monitoringCallback(void *outputBuffer, void *inputBuffer, unsigned int nFrames,
                                      double streamTime, RtAudioStreamStatus status, void *userData)
 {
@@ -229,13 +232,11 @@ int AudioManager::monitoringCallback(void *outputBuffer, void *inputBuffer, unsi
     float *rt_in_buffer = static_cast<float *>(inputBuffer);
     float *rt_out_buffer = static_cast<float *>(outputBuffer);
 
-    // --- Pitch Detection ---
     if (rt_in_buffer != nullptr)
     {
         detector->process(rt_in_buffer, nFrames, inputChannels);
     }
 
-    // --- Monitoring Output ---
     if (rt_out_buffer != nullptr && rt_in_buffer != nullptr)
     {
         if (inputChannels == 1 && outputChannels == 2)
@@ -270,7 +271,6 @@ int AudioManager::monitoringCallback(void *outputBuffer, void *inputBuffer, unsi
     return 0;
 }
 
-// --- Stream Management Implementations ---
 bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int outputDeviceId, unsigned int sampleRate, unsigned int bufferFrames)
 {
     if (!audio_)
@@ -290,27 +290,36 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
         return false;
     }
 
-    // --- Get Device Info ---
-    RtAudio::DeviceInfo inputInfo = getDeviceInfo(inputDeviceId);
-    RtAudio::DeviceInfo outputInfo = getDeviceInfo(outputDeviceId);
-    if (inputInfo.inputChannels == 0)
+    const auto inputInfo = getDeviceInfo(inputDeviceId);
+    if (!inputInfo)
+    {
+        defaultErrorCallback(RTAUDIO_INVALID_DEVICE, "Unable to inspect selected input device.");
+        return false;
+    }
+
+    const auto outputInfo = getDeviceInfo(outputDeviceId);
+    if (!outputInfo)
+    {
+        defaultErrorCallback(RTAUDIO_INVALID_DEVICE, "Unable to inspect selected output device.");
+        return false;
+    }
+
+    if (inputInfo->inputChannels == 0)
     {
         defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Selected input device (ID: " + std::to_string(inputDeviceId) + ") has no input channels.");
         return false;
     }
-    if (outputInfo.outputChannels == 0)
+    if (outputInfo->outputChannels == 0)
     {
         defaultErrorCallback(RTAUDIO_INVALID_PARAMETER, "Selected output device (ID: " + std::to_string(outputDeviceId) + ") has no output channels.");
         return false;
     }
 
-    // --- Determine RtAudio Stream Channel Counts ---
-    streamOutputChannels_ = (outputInfo.outputChannels >= 2) ? 2 : 1;
-    streamInputChannels_ = 1; // Request 1 channel for RtAudio input
+    streamOutputChannels_ = (outputInfo->outputChannels >= 2) ? 2 : 1;
+    streamInputChannels_ = 1;
     std::cout << "Requesting " << streamOutputChannels_ << " output channel(s)." << std::endl;
     std::cout << "Requesting " << streamInputChannels_ << " input channel(s) from RtAudio." << std::endl;
 
-    // --- Set RtAudio Stream Parameters ---
     RtAudio::StreamParameters iParams;
     iParams.deviceId = inputDeviceId;
     iParams.nChannels = streamInputChannels_;
@@ -320,21 +329,16 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
     oParams.nChannels = streamOutputChannels_;
     oParams.firstChannel = 0;
 
-    // --- Store Stream Settings ---
     streamSampleRate_ = sampleRate;
-    // Store requested size, actual size will be updated by openStream
     unsigned int requestedBufferFrames = bufferFrames;
     unsigned int actualBufferFrames = requestedBufferFrames;
 
-    // --- Reset Pitch Detector ---
     pitch_detector_.reset();
 
-    // --- Prepare Callback Data ---
     callbackData_.inputChannels = streamInputChannels_;
     callbackData_.outputChannels = streamOutputChannels_;
     callbackData_.pitchDetector = nullptr;
 
-    // --- Open the RtAudio Stream ---
     std::cout << "Attempting to open RtAudio stream: SR=" << streamSampleRate_ << " Buf=" << requestedBufferFrames
               << " Input Device=" << inputDeviceId << " Output Device=" << outputDeviceId
               << " Input Ch=" << streamInputChannels_ << " Output Ch=" << streamOutputChannels_ << std::endl;
@@ -359,21 +363,20 @@ bool AudioManager::openMonitoringStream(unsigned int inputDeviceId, unsigned int
         return false;
     }
 
-    // --- RtAudio Stream Opened Successfully ---
     streamBufferFrames_ = actualBufferFrames;
     streamIsOpen_ = true;
     std::cout << "RtAudio Stream opened successfully. Actual buffer size: " << streamBufferFrames_ << std::endl;
 
     try
     {
-        // Calculate hop size
         unsigned int hopSize = streamBufferFrames_;
         if (hopSize == 0)
+        {
             hopSize = 1;
+        }
 
         pitch_detector_ = std::make_unique<PitchDetector>(streamBufferFrames_, hopSize, streamSampleRate_);
         callbackData_.pitchDetector = pitch_detector_.get();
-        std::cout << "PitchDetector initialized successfully." << std::endl;
     }
     catch (const std::runtime_error &e)
     {
@@ -417,7 +420,6 @@ bool AudioManager::startStream()
     }
     else
     {
-        std::cout << "Stream started successfully." << std::endl;
         streamIsRunning_ = true;
     }
     return streamIsRunning_;
@@ -461,7 +463,6 @@ void AudioManager::closeStream()
     if (!audio_ && !pitch_detector_)
         return;
 
-    // Check RtAudio stream state first
     bool wasStreamOpen = false;
     try
     {
@@ -482,16 +483,10 @@ void AudioManager::closeStream()
         defaultErrorCallback(RTAUDIO_SYSTEM_ERROR, "Exception during RtAudio stop/closeStream: " + std::string(e.what()));
     }
 
-    // Destroy the pitch detector after the stream is closed or confirmed closed
     pitch_detector_.reset();
-    if (wasStreamOpen)
-        std::cout << "PitchDetector destroyed." << std::endl;
 
-    // Reset internal state flags
     streamIsOpen_ = false;
     streamIsRunning_ = false;
-    if (wasStreamOpen)
-        std::cout << "Stream resources released." << std::endl;
 }
 
 float AudioManager::getLatestPitchHz() const
