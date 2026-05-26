@@ -15,7 +15,7 @@ namespace
         return out;
     }
 
-    constexpr std::array<std::pair<std::string_view, GraphicsFlow::SceneId>, 11> kSceneAliases{{
+    constexpr std::array<std::pair<std::string_view, GraphicsFlow::SceneId>, 13> kSceneAliases{{
         {"intro", GraphicsFlow::SceneId::Intro},
         {"audio", GraphicsFlow::SceneId::AudioSetup},
         {"audio-setup", GraphicsFlow::SceneId::AudioSetup},
@@ -24,16 +24,19 @@ namespace
         {"main-menu", GraphicsFlow::SceneId::MainMenu},
         {"track", GraphicsFlow::SceneId::TrackSelect},
         {"track-select", GraphicsFlow::SceneId::TrackSelect},
+        {"editor", GraphicsFlow::SceneId::TrackEditor},
+        {"track-editor", GraphicsFlow::SceneId::TrackEditor},
         {"tuner", GraphicsFlow::SceneId::Tuner},
         {"settings", GraphicsFlow::SceneId::Settings},
         {"test", GraphicsFlow::SceneId::Test},
     }};
 
-    constexpr std::array<std::string_view, 7> kSceneNames{{
+    constexpr std::array<std::string_view, 8> kSceneNames{{
         "intro",
         "audio",
         "menu",
         "track",
+        "editor",
         "tuner",
         "settings",
         "test",

@@ -8,7 +8,9 @@ cmake_install.cmake
 compile_commands.json # Often generated in build dir, useful locally but not usually committed
 
 # Includes
-/external/
+/external/*
+!/external/gp_parser/
+!/external/gp_parser/**
 /vcpkg_installed/
 /.cache/
 /.tmp-vcpkg*/

@@ -3,71 +3,116 @@
 #include <imgui/imgui.h>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace
 {
     const ImVec4 kAccent = ImVec4(0.30f, 0.78f, 0.96f, 1.0f);
     const ImVec4 kMuted = ImVec4(0.72f, 0.78f, 0.88f, 1.0f);
+
+    int inferMidiFromPitchClass(std::string_view note, int previousMidi)
+    {
+        const std::string targetLabel = openchordix::track::displayTuningNote(note);
+        int bestMidi = -1;
+        int bestDistance = 999;
+
+        for (int midi = 0; midi <= 127; ++midi)
+        {
+            if (openchordix::track::displayTuningNote(openchordix::track::tuningNoteLabelFromMidi(midi)) != targetLabel)
+            {
+                continue;
+            }
+
+            if (previousMidi < 0)
+            {
+                if (midi >= 36 && midi <= 76)
+                {
+                    bestMidi = std::max(bestMidi, midi);
+                }
+                continue;
+            }
+
+            if (midi >= previousMidi)
+            {
+                continue;
+            }
+
+            const int distance = previousMidi - midi;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestMidi = midi;
+            }
+        }
+
+        if (bestMidi >= 0)
+        {
+            return bestMidi;
+        }
+
+        for (int midi = 0; midi <= 127; ++midi)
+        {
+            if (openchordix::track::displayTuningNote(openchordix::track::tuningNoteLabelFromMidi(midi)) == targetLabel)
+            {
+                return midi;
+            }
+        }
+        return -1;
+    }
+
 }
 
 TunerScene::TunerScene(AudioSession &audio, AnimatedUI &ui)
     : audio_(audio), ui_(ui)
 {
-    tunings_.push_back(TuningProfile{
-        "Standard E",
-        "E A D G B E",
-        {makeString(40), makeString(45), makeString(50), makeString(55), makeString(59), makeString(64)}});
-
-    tunings_.push_back(TuningProfile{
-        "Drop D",
-        "D A D G B E",
-        {makeString(38), makeString(45), makeString(50), makeString(55), makeString(59), makeString(64)}});
-
-    tunings_.push_back(TuningProfile{
-        "Eb (Half-step down)",
-        "Eb Ab Db Gb Bb Eb",
-        {makeString(39), makeString(44), makeString(49), makeString(54), makeString(58), makeString(63)}});
-
-    tunings_.push_back(TuningProfile{
-        "D Standard",
-        "D G C F A D",
-        {makeString(38), makeString(43), makeString(48), makeString(53), makeString(57), makeString(62)}});
-
-    tunings_.push_back(TuningProfile{
-        "Drop C",
-        "C G C F A D",
-        {makeString(36), makeString(43), makeString(48), makeString(53), makeString(57), makeString(62)}});
-
-    selectedString_ = static_cast<int>(tunings_.front().strings.size()) - 1;
-    lastAutoString_ = selectedString_;
-}
-
-TunerScene::StringTarget TunerScene::makeString(int midi)
-{
-    StringTarget s;
-    s.midi = midi;
-    s.frequency = midiToFrequency(midi);
-    s.label = midiToLabel(midi);
-    return s;
-}
-
-float TunerScene::midiToFrequency(int midi)
-{
-    return 440.0f * std::pow(2.0f, (static_cast<float>(midi) - 69.0f) / 12.0f);
-}
-
-std::string TunerScene::midiToLabel(int midi)
-{
-    if (midi < 0 || midi > 127)
+    openchordix::track::TuningLibrary tuningLibrary;
+    auto makeTargets = [](const std::vector<std::string> &notes)
     {
-        return "---";
+        std::vector<StringTarget> targets;
+        targets.reserve(notes.size());
+        int previousMidi = -1;
+        for (const std::string &note : notes)
+        {
+            int midi = openchordix::track::tuningNoteMidi(note).value_or(-1);
+            if (midi < 0)
+            {
+                midi = inferMidiFromPitchClass(note, previousMidi);
+            }
+
+            StringTarget target;
+            target.midi = midi;
+            target.frequency = midi >= 0 ? static_cast<float>(openchordix::track::tuningFrequencyFromMidi(midi)) : 0.0f;
+            target.label = midi >= 0 ? openchordix::track::tuningNoteLabelFromMidi(midi) : openchordix::track::displayTuningNote(note);
+            targets.push_back(std::move(target));
+            if (midi >= 0)
+            {
+                previousMidi = midi;
+            }
+        }
+        return targets;
+    };
+    for (const auto &preset : tuningLibrary.presets())
+    {
+        tunings_.push_back(TuningProfile{
+            preset.name,
+            openchordix::track::tuningNotesSummary(preset.notes),
+            makeTargets(preset.notes)});
     }
-    static const char *names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
-    int noteIndex = midi % 12;
-    int octave = midi / 12 - 1;
-    std::string label = names[noteIndex];
-    label += std::to_string(octave);
-    return label;
+
+    if (tunings_.empty())
+    {
+        const std::vector<std::string> fallbackNotes = {"E4", "B3", "G3", "D3", "A2", "E2"};
+        tunings_.push_back(TuningProfile{
+            "Standard E",
+            openchordix::track::tuningNotesSummary(fallbackNotes),
+            makeTargets(fallbackNotes)});
+    }
+
+    if (!tunings_.empty())
+    {
+        selectedString_ = static_cast<int>(tunings_.front().strings.size()) - 1;
+        lastAutoString_ = selectedString_;
+    }
 }
 
 int TunerScene::detectStringFromPitch(const PitchState &pitch) const

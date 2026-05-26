@@ -7,5 +7,5 @@
 namespace openchordix::track
 {
     std::optional<std::string> readAudioDuration(const std::filesystem::path &audioPath);
+    std::optional<int> readAudioDurationSeconds(const std::filesystem::path &audioPath);
 }
-

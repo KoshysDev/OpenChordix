@@ -6,6 +6,7 @@
 #include "Scene.h"
 #include "audio/AudioSession.h"
 #include "AnimatedUI.h"
+#include "track/TuningLibrary.h"
 
 class TunerScene : public Scene
 {
@@ -35,10 +36,6 @@ private:
     void drawLivePanel(const PitchState &pitch, const StringTarget &target, int stringIndex);
     int activeStringIndex(const PitchState &pitch);
     int detectStringFromPitch(const PitchState &pitch) const;
-
-    static StringTarget makeString(int midi);
-    static float midiToFrequency(int midi);
-    static std::string midiToLabel(int midi);
 
     AudioSession &audio_;
     AnimatedUI &ui_;

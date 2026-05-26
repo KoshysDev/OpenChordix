@@ -12,6 +12,9 @@
 
 #include "AppPaths.h"
 #include "track/TrackAudioDuration.h"
+#include "track/TrackFilePaths.h"
+#include "track/TrackStringUtils.h"
+#include "track/TuningLibrary.h"
 
 namespace
 {
@@ -19,12 +22,43 @@ namespace
     constexpr const char *kSongsDirectoryName = "Songs";
     constexpr const char *kDefaultChartFileName = "chart.ocx";
 
+    std::string trimCopyLocal(std::string_view value)
+    {
+        size_t first = 0;
+        while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first])) != 0)
+        {
+            ++first;
+        }
+        size_t last = value.size();
+        while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1])) != 0)
+        {
+            --last;
+        }
+        return std::string(value.substr(first, last - first));
+    }
+
+    void registerTuningsForTrack(openchordix::track::TuningLibrary &tuningLibrary, const TrackInfo &track)
+    {
+        for (const TrackPart &part : track.parts)
+        {
+            const std::string partName = trimCopyLocal(part.name);
+            const std::string suggestedName = partName.empty()
+                                                  ? std::to_string(openchordix::track::clampTrackStringCount(part.stringCount)) + "-string Custom"
+                                                  : partName + " tuning";
+            tuningLibrary.ensurePreset(suggestedName, part.tuning);
+        }
+    }
+
     json toJson(const TrackInfo &track)
     {
         json parts = json::array();
         for (const TrackPart &part : track.parts)
         {
-            parts.push_back(part.name);
+            parts.push_back(json{
+                {"name", part.name},
+                {"string_count", openchordix::track::clampTrackStringCount(part.stringCount)},
+                {"tuning", openchordix::track::normalizeTrackTuning(part.tuning, part.name, part.stringCount)},
+            });
         }
 
         return json{
@@ -35,8 +69,10 @@ namespace
             {"mapper", track.mapper},
             {"bpm", track.bpm},
             {"length", track.length},
+            {"preview_start", track.previewStartSeconds},
             {"parts", parts},
             {"directory", track.directory},
+            {"audio_file", track.audioFile},
             {"chart_file", track.chartFile}};
     }
 
@@ -50,6 +86,7 @@ namespace
         track.mapper = value.value("mapper", "");
         track.bpm = value.value("bpm", 0);
         track.length = value.value("length", "");
+        track.previewStartSeconds = std::max(0.0, value.value("preview_start", 0.0));
         track.directory = value.value("directory", "");
         track.audioFile = value.value("audio_file", "");
         track.chartFile = value.value("chart_file", "");
@@ -58,11 +95,37 @@ namespace
         {
             for (const auto &partValue : *partsIt)
             {
-                if (!partValue.is_string())
+                if (partValue.is_string())
+                {
+                    const std::string name = partValue.get<std::string>();
+                    track.parts.push_back(TrackPart{
+                        .name = name,
+                        .stringCount = openchordix::track::kDefaultTrackStrings,
+                        .tuning = openchordix::track::defaultTuningForPart(name, openchordix::track::kDefaultTrackStrings),
+                    });
+                    continue;
+                }
+                if (!partValue.is_object())
                 {
                     continue;
                 }
-                track.parts.push_back(TrackPart{partValue.get<std::string>()});
+
+                TrackPart part;
+                part.name = partValue.value("name", "");
+                part.stringCount = openchordix::track::clampTrackStringCount(
+                    partValue.value("string_count", openchordix::track::kDefaultTrackStrings));
+                if (const auto tuningIt = partValue.find("tuning"); tuningIt != partValue.end() && tuningIt->is_array())
+                {
+                    for (const auto &entry : *tuningIt)
+                    {
+                        if (entry.is_string())
+                        {
+                            part.tuning.push_back(entry.get<std::string>());
+                        }
+                    }
+                }
+                part.tuning = openchordix::track::normalizeTrackTuning(part.tuning, part.name, part.stringCount);
+                track.parts.push_back(std::move(part));
             }
         }
 
@@ -172,6 +235,7 @@ bool TrackCatalogFile::reload()
         track.directory = trimCopy(track.directory);
         track.audioFile = trimCopy(track.audioFile);
         track.chartFile = trimCopy(track.chartFile);
+        track.previewStartSeconds = std::max(0.0, track.previewStartSeconds);
 
         if (track.id.empty())
         {
@@ -193,7 +257,7 @@ bool TrackCatalogFile::reload()
         }
 
         applyTrackDefaults(track);
-        mergeMetadataFromChart(resolveAbsoluteChartPath(track), track);
+        mergeMetadataFromChart(openchordix::track::resolveChartPath(track, openchordix::core::executableDirectory()), track);
         track.title = trimCopy(track.title);
         track.artist = trimCopy(track.artist);
         track.source = trimCopy(track.source);
@@ -224,6 +288,11 @@ bool TrackCatalogFile::reload()
 
     tracks_ = std::move(loaded);
     rebuildSearchIndex();
+    openchordix::track::TuningLibrary tuningLibrary;
+    for (const TrackInfo &track : tracks_)
+    {
+        registerTuningsForTrack(tuningLibrary, track);
+    }
     return true;
 }
 
@@ -247,28 +316,29 @@ bool TrackCatalogFile::addTrack(const TrackInfo &track)
 
     normalized.id = makeUniqueId(normalized);
     if (!normalized.audioFile.empty())
+    applyTrackDefaults(normalized);
+    if (!stageAudioFile(normalized))
     {
-        std::filesystem::path resolvedAudioPath = normalized.audioFile;
-        if (!normalized.directory.empty() && resolvedAudioPath.is_relative())
-        {
-            resolvedAudioPath = std::filesystem::path(normalized.directory) / resolvedAudioPath;
-        }
-
+        return false;
+    }
+    if (!normalized.audioFile.empty())
+    {
+        std::filesystem::path resolvedAudioPath = openchordix::track::resolveAudioPath(normalized, openchordix::core::executableDirectory());
         if (auto detectedDuration = openchordix::track::readAudioDuration(resolvedAudioPath))
         {
             normalized.length = *detectedDuration;
         }
     }
-
     if (normalized.source.empty())
     {
         normalized.source = "Custom";
     }
-    applyTrackDefaults(normalized);
     if (!ensureSongChartAssets(normalized))
     {
         return false;
     }
+    openchordix::track::TuningLibrary tuningLibrary;
+    registerTuningsForTrack(tuningLibrary, normalized);
 
     tracks_.push_back(normalized);
     searchIndex_.push_back(makeSearchBlob(normalized));
@@ -331,28 +401,29 @@ bool TrackCatalogFile::updateTrack(std::string_view id, const TrackInfo &track)
     }
 
     if (!normalized.audioFile.empty())
+    applyTrackDefaults(normalized);
+    if (!stageAudioFile(normalized))
     {
-        std::filesystem::path resolvedAudioPath = normalized.audioFile;
-        if (!normalized.directory.empty() && resolvedAudioPath.is_relative())
-        {
-            resolvedAudioPath = std::filesystem::path(normalized.directory) / resolvedAudioPath;
-        }
-
+        return false;
+    }
+    if (!normalized.audioFile.empty())
+    {
+        std::filesystem::path resolvedAudioPath = openchordix::track::resolveAudioPath(normalized, openchordix::core::executableDirectory());
         if (auto detectedDuration = openchordix::track::readAudioDuration(resolvedAudioPath))
         {
             normalized.length = *detectedDuration;
         }
     }
-
     if (normalized.source.empty())
     {
         normalized.source = "Custom";
     }
-    applyTrackDefaults(normalized);
     if (!ensureSongChartAssets(normalized))
     {
         return false;
     }
+    openchordix::track::TuningLibrary tuningLibrary;
+    registerTuningsForTrack(tuningLibrary, normalized);
 
     const size_t index = static_cast<size_t>(std::distance(tracks_.begin(), it));
     TrackInfo previous = tracks_[index];
@@ -418,19 +489,7 @@ std::string TrackCatalogFile::lowerCopy(const std::string &value)
 
 std::string TrackCatalogFile::trimCopy(std::string_view value)
 {
-    size_t first = 0;
-    while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first])))
-    {
-        ++first;
-    }
-
-    size_t last = value.size();
-    while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1])))
-    {
-        --last;
-    }
-
-    return std::string(value.substr(first, last - first));
+    return openchordix::track::trimCopy(value);
 }
 
 std::string TrackCatalogFile::slugify(std::string_view value)
@@ -480,7 +539,11 @@ std::vector<TrackPart> TrackCatalogFile::normalizeParts(const std::vector<TrackP
         {
             continue;
         }
-        normalized.push_back(TrackPart{name});
+        normalized.push_back(TrackPart{
+            .name = name,
+            .stringCount = openchordix::track::clampTrackStringCount(part.stringCount),
+            .tuning = openchordix::track::normalizeTrackTuning(part.tuning, name, part.stringCount),
+        });
     }
     return normalized;
 }
@@ -493,34 +556,6 @@ std::filesystem::path TrackCatalogFile::resolveDefaultStoragePath()
 std::filesystem::path TrackCatalogFile::resolveLegacyStoragePath()
 {
     return openchordix::core::executableDirectory() / "songs_db.json";
-}
-
-std::filesystem::path TrackCatalogFile::resolveAbsoluteSongDirectory(const TrackInfo &track)
-{
-    std::filesystem::path songDir(track.directory);
-    if (songDir.empty())
-    {
-        return openchordix::core::executableDirectory() / kSongsDirectoryName / track.id;
-    }
-    if (songDir.is_relative())
-    {
-        return openchordix::core::executableDirectory() / songDir;
-    }
-    return songDir;
-}
-
-std::filesystem::path TrackCatalogFile::resolveAbsoluteChartPath(const TrackInfo &track)
-{
-    std::filesystem::path chartPath(track.chartFile);
-    if (chartPath.empty())
-    {
-        chartPath = kDefaultChartFileName;
-    }
-    if (chartPath.is_relative())
-    {
-        return resolveAbsoluteSongDirectory(track) / chartPath;
-    }
-    return chartPath;
 }
 
 bool TrackCatalogFile::mergeMetadataFromChart(const std::filesystem::path &chartPath, TrackInfo &track)
@@ -575,6 +610,10 @@ bool TrackCatalogFile::mergeMetadataFromChart(const std::filesystem::path &chart
     {
         track.length = trimCopy(lengthIt->get<std::string>());
     }
+    if (const auto previewIt = root.find("preview_start"); previewIt != root.end() && previewIt->is_number())
+    {
+        track.previewStartSeconds = std::max(0.0, previewIt->get<double>());
+    }
     if (const auto audioIt = root.find("audio_file"); audioIt != root.end() && audioIt->is_string())
     {
         track.audioFile = trimCopy(audioIt->get<std::string>());
@@ -589,11 +628,37 @@ bool TrackCatalogFile::mergeMetadataFromChart(const std::filesystem::path &chart
         track.parts.clear();
         for (const auto &partValue : *partsIt)
         {
-            if (!partValue.is_string())
+            if (partValue.is_string())
+            {
+                const std::string name = trimCopy(partValue.get<std::string>());
+                track.parts.push_back(TrackPart{
+                    .name = name,
+                    .stringCount = openchordix::track::kDefaultTrackStrings,
+                    .tuning = openchordix::track::defaultTuningForPart(name, openchordix::track::kDefaultTrackStrings),
+                });
+                continue;
+            }
+            if (!partValue.is_object())
             {
                 continue;
             }
-            track.parts.push_back(TrackPart{trimCopy(partValue.get<std::string>())});
+
+            TrackPart part;
+            part.name = trimCopy(partValue.value("name", ""));
+            part.stringCount = openchordix::track::clampTrackStringCount(
+                partValue.value("string_count", openchordix::track::kDefaultTrackStrings));
+            if (const auto tuningIt = partValue.find("tuning"); tuningIt != partValue.end() && tuningIt->is_array())
+            {
+                for (const auto &entry : *tuningIt)
+                {
+                    if (entry.is_string())
+                    {
+                        part.tuning.push_back(trimCopy(entry.get<std::string>()));
+                    }
+                }
+            }
+            part.tuning = openchordix::track::normalizeTrackTuning(part.tuning, part.name, part.stringCount);
+            track.parts.push_back(std::move(part));
         }
     }
 
@@ -643,19 +708,70 @@ void TrackCatalogFile::applyTrackDefaults(TrackInfo &track) const
     {
         track.chartFile = kDefaultChartFileName;
     }
+    track.previewStartSeconds = std::max(0.0, track.previewStartSeconds);
 }
 
-bool TrackCatalogFile::ensureSongChartAssets(const TrackInfo &track) const
+bool TrackCatalogFile::stageAudioFile(TrackInfo &track) const
 {
+    if (track.audioFile.empty())
+    {
+        return true;
+    }
+
     std::error_code ec;
-    const std::filesystem::path songDir = resolveAbsoluteSongDirectory(track);
+    std::filesystem::path sourcePath(track.audioFile);
+    if (sourcePath.is_relative())
+    {
+        const std::filesystem::path insideSongDir =
+            openchordix::track::resolveSongDirectory(track, openchordix::core::executableDirectory()) / sourcePath;
+        if (std::filesystem::exists(insideSongDir, ec))
+        {
+            track.audioFile = sourcePath.generic_string();
+            return true;
+        }
+
+        sourcePath = openchordix::core::executableDirectory() / sourcePath;
+    }
+
+    if (!std::filesystem::exists(sourcePath, ec))
+    {
+        return false;
+    }
+
+    const std::filesystem::path songDir =
+        openchordix::track::resolveSongDirectory(track, openchordix::core::executableDirectory());
     std::filesystem::create_directories(songDir, ec);
     if (ec)
     {
         return false;
     }
 
-    const std::filesystem::path chartPath = resolveAbsoluteChartPath(track);
+    const std::filesystem::path destination = songDir / sourcePath.filename();
+    if (std::filesystem::weakly_canonical(sourcePath, ec) != std::filesystem::weakly_canonical(destination, ec))
+    {
+        ec.clear();
+        std::filesystem::copy_file(sourcePath, destination, std::filesystem::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            return false;
+        }
+    }
+
+    track.audioFile = destination.filename().generic_string();
+    return true;
+}
+
+bool TrackCatalogFile::ensureSongChartAssets(const TrackInfo &track) const
+{
+    std::error_code ec;
+    const std::filesystem::path songDir = openchordix::track::resolveSongDirectory(track, openchordix::core::executableDirectory());
+    std::filesystem::create_directories(songDir, ec);
+    if (ec)
+    {
+        return false;
+    }
+
+    const std::filesystem::path chartPath = openchordix::track::resolveChartPath(track, openchordix::core::executableDirectory());
     json chartRoot;
     if (std::filesystem::exists(chartPath))
     {
@@ -701,11 +817,16 @@ bool TrackCatalogFile::ensureSongChartAssets(const TrackInfo &track) const
     chartRoot["mapper"] = track.mapper;
     chartRoot["bpm"] = track.bpm;
     chartRoot["length"] = track.length;
+    chartRoot["preview_start"] = track.previewStartSeconds;
     chartRoot["audio_file"] = track.audioFile;
     chartRoot["parts"] = json::array();
     for (const TrackPart &part : track.parts)
     {
-        chartRoot["parts"].push_back(part.name);
+        chartRoot["parts"].push_back(json{
+            {"name", part.name},
+            {"string_count", openchordix::track::clampTrackStringCount(part.stringCount)},
+            {"tuning", openchordix::track::normalizeTrackTuning(part.tuning, part.name, part.stringCount)},
+        });
     }
 
     std::ofstream out(chartPath, std::ios::trunc);

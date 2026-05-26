@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <rtaudio/RtAudio.h>
@@ -34,6 +35,7 @@ public:
         AudioSetup,
         MainMenu,
         TrackSelect,
+        TrackEditor,
         Tuner,
         Settings,
         Test
@@ -51,5 +53,7 @@ private:
     std::vector<RtAudio::Api> apis_;
     openchordix::devtools::DevConsole devConsole_;
     TestSceneModelController testSceneModel_{};
-    bool openCreateSongOnTrackSelect_ = false;
+    std::string trackSelectionFocusId_;
+    std::string trackEditorTrackId_;
+    SceneId trackEditorReturnScene_ = SceneId::MainMenu;
 };

@@ -12,7 +12,7 @@
 #include "GraphicsFlow.h"
 #include "NoteConverter.h"
 #include "audio/AudioSession.h"
-#include "console/ConsoleFlow.h"
+#include <console/ConsoleFlow.h>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN

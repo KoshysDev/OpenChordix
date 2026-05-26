@@ -1,5 +1,6 @@
 #include "GraphicsContext.h"
 
+#include <cmath>
 #include <iostream>
 #include <system_error>
 #include <vector>
@@ -137,6 +138,17 @@ GraphicsContext::GraphicsContext()
 GraphicsContext::~GraphicsContext()
 {
     shutdown();
+}
+
+void GraphicsContext::addScrollDelta(float delta)
+{
+    scrollCarry_ += delta;
+    const float wholeSteps = std::trunc(scrollCarry_);
+    if (wholeSteps != 0.0f)
+    {
+        scrollPosition_ += static_cast<int32_t>(wholeSteps);
+        scrollCarry_ -= wholeSteps;
+    }
 }
 
 void GraphicsContext::syncFramebufferSize(int fallbackWidth, int fallbackHeight)
@@ -522,8 +534,7 @@ FrameInput GraphicsContext::pollFrame()
     if (glfwGetMouseButton(window_, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
         input.buttonMask |= IMGUI_MBUT_MIDDLE;
 
-    input.scroll = static_cast<int32_t>(scrollDelta_);
-    scrollDelta_ = 0.0f;
+    input.scroll = scrollPosition_;
     input.inputChars = std::move(inputChars_);
     inputChars_.clear();
     return input;

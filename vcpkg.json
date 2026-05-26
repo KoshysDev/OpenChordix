@@ -22,6 +22,8 @@
     "catch2",
     "glfw3",
     "fastgltf",
-    "nlohmann-json"
+    "nlohmann-json",
+    "miniz",
+    "pugixml"
   ]
 }
