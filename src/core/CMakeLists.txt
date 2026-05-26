@@ -15,23 +15,54 @@ add_library(openchordix_core STATIC
     track/TrackCatalogFile.cpp
     track/TrackCatalogFile.h
     track/TrackCatalog.h
+    track/TrackChartDocument.cpp
+    track/TrackChartDocument.h
     track/TrackAudioDuration.cpp
     track/TrackAudioDuration.h
+    track/TrackFilePaths.cpp
+    track/TrackFilePaths.h
+    track/TrackPreviewPlayer.cpp
+    track/TrackPreviewPlayer.h
+    track/TuningLibrary.cpp
+    track/TuningLibrary.h
     track/TrackTypes.h
+    track/import/TrackImport.h
+    track/import/ITrackImporter.h
+    track/import/MidiImporter.cpp
+    track/import/MidiImporter.h
+    track/import/GuitarProImporter.cpp
+    track/import/GuitarProImporter.h
+    track/import/GuitarPro7Importer.cpp
+    track/import/GuitarPro7Importer.h
+    track/import/ImporterRegistry.cpp
+    track/import/ImporterRegistry.h
+    track/import/TrackImportApply.cpp
+    track/import/TrackImportApply.h
+    track/import/ImportTimingDebug.cpp
+    track/import/ImportTimingDebug.h
+    ${CMAKE_SOURCE_DIR}/external/gp_parser/gp_parser.cpp
+    ${CMAKE_SOURCE_DIR}/external/gp_parser/gp_parser.h
 )
 
 target_include_directories(openchordix_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+target_include_directories(openchordix_core PRIVATE
+    ${CMAKE_SOURCE_DIR}/external/gp_parser
 )
 
 if(WIN32)
     find_package(Aubio CONFIG REQUIRED)
     find_package(RtAudio CONFIG REQUIRED)
     find_package(nlohmann_json CONFIG REQUIRED)
+    find_package(miniz CONFIG REQUIRED)
+    find_package(pugixml CONFIG REQUIRED)
 else()
     find_package(Aubio QUIET)
     find_package(RtAudio QUIET)
     find_package(nlohmann_json CONFIG REQUIRED)
+    find_package(miniz CONFIG REQUIRED)
+    find_package(pugixml CONFIG REQUIRED)
 
     if(NOT RtAudio_FOUND AND NOT TARGET RtAudio::rtaudio)
         find_package(PkgConfig REQUIRED)
@@ -49,6 +80,8 @@ endif()
 target_link_libraries(openchordix_core PUBLIC
     Threads::Threads
     nlohmann_json::nlohmann_json
+    miniz::miniz
+    pugixml::pugixml
 
     # RtAudio
     $<$<TARGET_EXISTS:RtAudio::rtaudio>:RtAudio::rtaudio>
