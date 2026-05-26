@@ -15,8 +15,7 @@ rm -rf "${APP_DIR}"
 cmake --install "${BUILD_DIR}" --config Release --prefix "${APP_DIR}/usr"
 
 mkdir -p "${APP_DIR}/usr/share/applications"
-mkdir -p "${APP_DIR}/usr/share/icons/hicolor/256x256/apps"
-cp "${ROOT_DIR}/assets/icons/AppIcon.png" "${APP_DIR}/usr/share/icons/hicolor/256x256/apps/openchordix.png"
+cp "${ROOT_DIR}/assets/icons/AppIcon.png" "${APP_DIR}/openchordix.png"
 cat > "${APP_DIR}/usr/share/applications/openchordix.desktop" <<'EOF'
 [Desktop Entry]
 Name=OpenChordix
@@ -50,5 +49,5 @@ APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
   --appdir "${APP_DIR}" \
   --executable "${APP_DIR}/usr/bin/OpenChordix" \
   --desktop-file "${APP_DIR}/usr/share/applications/openchordix.desktop" \
-  --icon-file "${APP_DIR}/usr/share/icons/hicolor/256x256/apps/openchordix.png" \
+  --icon-file "${APP_DIR}/openchordix.png" \
   --output appimage
