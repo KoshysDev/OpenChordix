@@ -31,7 +31,7 @@ public:
     void shutdown();
 
     FrameInput pollFrame();
-    void addScrollDelta(float delta) { scrollDelta_ += delta; }
+    void addScrollDelta(float delta);
     void applyResize(uint32_t width, uint32_t height);
     void syncFramebufferSize(int fallbackWidth = 0, int fallbackHeight = 0);
     bool shouldClose() const;
@@ -56,7 +56,8 @@ private:
     openchordix::RendererConfig rendererConfig_{};
     openchordix::render::ModelRenderer modelRenderer_{};
     bool startedWithWindow_{false};
-    float scrollDelta_{0.0f};
+    float scrollCarry_{0.0f};
+    int32_t scrollPosition_{0};
     std::vector<uint32_t> inputChars_{};
     int lastFbWidth_{0};
     int lastFbHeight_{0};
