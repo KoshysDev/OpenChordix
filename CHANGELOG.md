@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1](https://github.com/KoshysDev/OpenChordix/compare/v0.8.0...v0.8.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* **packaging:** bundle and validate runtime dependencies in release a… ([3466594](https://github.com/KoshysDev/OpenChordix/commit/3466594546f1198545b48f5dd6e0733a37e404da))
+* **packaging:** bundle and validate runtime dependencies in release artifacts ([a093edf](https://github.com/KoshysDev/OpenChordix/commit/a093edf4867218073207a613778993b416226d4e))
+* **packaging:** bundle correctly sized AppImage icons ([bbf087d](https://github.com/KoshysDev/OpenChordix/commit/bbf087d8d29076825efd5a5ea37cd1eb9d1d156f))
+* **packaging:** stage AppImage icon with correct hicolor size ([202f5f6](https://github.com/KoshysDev/OpenChordix/commit/202f5f60b24decd77ac9c7a610d64e3448fc15fc))
+
 ## [0.8.0](https://github.com/KoshysDev/OpenChordix/compare/v0.7.3...v0.8.0) (2026-05-26)
 
 
