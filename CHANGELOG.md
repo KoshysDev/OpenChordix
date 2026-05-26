@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/KoshysDev/OpenChordix/compare/v0.7.3...v0.8.0) (2026-05-26)
+
+
+### Features
+
+* **catalog:** persist track parts, tunings, audio files, and preview positions ([6f7a4ce](https://github.com/KoshysDev/OpenChordix/commit/6f7a4ce3ed224a7df365a14ab6f5b8a23ecbcc02))
+* **editor:** add track editor scene and song editing flow ([a47c3b2](https://github.com/KoshysDev/OpenChordix/commit/a47c3b2fd2623fe759c9df777a8903f5782b2a8a))
+* **import:** add chart import pipeline with Guitar Pro package support ([c852e66](https://github.com/KoshysDev/OpenChordix/commit/c852e66942c85a35c10a4cee995fb2899654e6b1))
+* **track:** add chart documents, tunings, and preview audio support ([488de83](https://github.com/KoshysDev/OpenChordix/commit/488de8359e441128dba827e7d0ea660d1efb3eb6))
+* **tuner:** load targets from the shared tuning library ([e6c919c](https://github.com/KoshysDev/OpenChordix/commit/e6c919cacc3e771f0dc8d6055025eab275e072bc))
+
+
+### Bug Fixes
+
+* **graphics:** preserve accumulated scroll input across frames ([c7ae339](https://github.com/KoshysDev/OpenChordix/commit/c7ae3396963a9ad71b67908ab7748369b489c314))
+
 ## [0.7.3](https://github.com/KoshysDev/OpenChordix/compare/v0.7.2...v0.7.3) (2026-04-05)
 
 
