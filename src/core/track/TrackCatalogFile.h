@@ -27,12 +27,11 @@ private:
     static std::vector<TrackPart> normalizeParts(const std::vector<TrackPart> &parts);
     static std::filesystem::path resolveDefaultStoragePath();
     static std::filesystem::path resolveLegacyStoragePath();
-    static std::filesystem::path resolveAbsoluteSongDirectory(const TrackInfo &track);
-    static std::filesystem::path resolveAbsoluteChartPath(const TrackInfo &track);
     static bool mergeMetadataFromChart(const std::filesystem::path &chartPath, TrackInfo &track);
 
     std::string makeUniqueId(const TrackInfo &track) const;
     void applyTrackDefaults(TrackInfo &track) const;
+    bool stageAudioFile(TrackInfo &track) const;
     bool ensureSongChartAssets(const TrackInfo &track) const;
     bool isTrackValid(const TrackInfo &track) const;
     bool persist() const;
