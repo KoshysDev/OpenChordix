@@ -24,6 +24,12 @@ build/
 /[Bb]uild*/
 /[Oo]ut*/
 /[Bb]in/
+/dist/
+/AppDir/
+/squashfs-root/
+/linuxdeploy.AppImage
+/OpenChordix*.AppImage
+/OpenChordix-*.zip
 
 # Compiled object files
 *.o

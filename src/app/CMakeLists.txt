@@ -98,7 +98,11 @@ if(WIN32)
     endif()
 endif()
 
-install(TARGETS OpenChordix RUNTIME DESTINATION bin)
+if(WIN32)
+    install(TARGETS OpenChordix RUNTIME DESTINATION .)
+else()
+    install(TARGETS OpenChordix RUNTIME DESTINATION bin)
+endif()
 
 target_link_libraries(OpenChordix PRIVATE
     openchordix_core

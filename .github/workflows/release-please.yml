@@ -128,24 +128,12 @@ jobs:
 
       - name: Package AppImage
         run: |
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/share/applications
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          cp build/src/app/OpenChordix AppDir/usr/bin/OpenChordix
-          cp assets/icons/AppIcon.png AppDir/usr/share/icons/hicolor/256x256/apps/openchordix.png
-          cat > AppDir/usr/share/applications/openchordix.desktop <<'EOF'
-          [Desktop Entry]
-          Name=OpenChordix
-          Comment=OpenChordix Pitch Detection
-          Exec=OpenChordix
-          Icon=openchordix
-          Terminal=false
-          Type=Application
-          Categories=AudioVideo;Audio;
-          EOF
-          curl -L -o linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSL -o linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy.AppImage
-          APPIMAGE_NAME=OpenChordix ./linuxdeploy.AppImage --appdir AppDir --output appimage
+          sh scripts/package-appimage.sh
+
+      - name: Validate AppImage
+        run: sh scripts/verify-appimage.sh OpenChordix*.AppImage
 
       - name: Upload AppImage
         uses: softprops/action-gh-release@v2
@@ -406,62 +394,31 @@ jobs:
           $env:PATH = "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin;${{ steps.mingw-path.outputs.mingw_bin }};$env:PATH"
           ctest --test-dir build --output-on-failure
 
+      - name: Stage Windows executable
+        shell: pwsh
+        run: cmake --install build --config Release --prefix "$env:GITHUB_WORKSPACE\dist\windows-install"
+
       - name: Package Windows zip
         shell: pwsh
         run: |
-          $artifactDir = Join-Path $env:GITHUB_WORKSPACE "dist\windows-x64"
-          New-Item -Path $artifactDir -ItemType Directory -Force | Out-Null
-
-          $exePath = Join-Path $env:GITHUB_WORKSPACE "build\src\app\OpenChordix.exe"
-          if (!(Test-Path $exePath)) {
-            throw "OpenChordix.exe not found at $exePath"
-          }
-          Copy-Item $exePath -Destination $artifactDir -Force
-
-          $vcpkgBin = Join-Path $env:GITHUB_WORKSPACE "build\vcpkg_installed\x64-mingw-dynamic\bin"
-          $mingwBin = "${{ steps.mingw-path.outputs.mingw_bin }}"
-
-          $requiredDlls = @(
-            "glfw3.dll",
-            "libfastgltf.dll",
-            "librtaudio.dll",
-            "libsimdjson.dll"
+          $searchDirectories = @(
+            "$env:GITHUB_WORKSPACE\dist\windows-install",
+            "$env:GITHUB_WORKSPACE\build\src\app",
+            "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin",
+            "${{ steps.mingw-path.outputs.mingw_bin }}"
           )
-          $optionalDlls = @(
-            "libgcc_s_seh-1.dll",
-            "libstdc++-6.dll",
-            "libwinpthread-1.dll"
-          )
+          & .\scripts\package-windows.ps1 `
+            -ExecutablePath "$env:GITHUB_WORKSPACE\dist\windows-install\OpenChordix.exe" `
+            -OutputDirectory "$env:GITHUB_WORKSPACE\dist\windows-x64" `
+            -SearchDirectories $searchDirectories `
+            -ZipPath "$env:GITHUB_WORKSPACE\OpenChordix-windows-x64.zip"
 
-          function Copy-Dll([string]$dll, [bool]$required) {
-            $fromVcpkg = Join-Path $vcpkgBin $dll
-            $fromMingw = Join-Path $mingwBin $dll
-            if (Test-Path $fromVcpkg) {
-              Copy-Item $fromVcpkg -Destination $artifactDir -Force
-              return
-            }
-            if (Test-Path $fromMingw) {
-              Copy-Item $fromMingw -Destination $artifactDir -Force
-              return
-            }
-            if ($required) {
-              throw "Required runtime DLL not found: $dll"
-            }
-            Write-Host "Optional DLL not found (skipped): $dll"
-          }
-
-          foreach ($dll in $requiredDlls) {
-            Copy-Dll $dll $true
-          }
-          foreach ($dll in $optionalDlls) {
-            Copy-Dll $dll $false
-          }
-
-          $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenChordix-windows-x64.zip"
-          if (Test-Path $zipPath) {
-            Remove-Item $zipPath -Force
-          }
-          Compress-Archive -Path (Join-Path $artifactDir "*") -DestinationPath $zipPath
+      - name: Validate Windows zip contents
+        shell: pwsh
+        run: |
+          & .\scripts\verify-windows-package.ps1 `
+            -PackageDirectory "$env:GITHUB_WORKSPACE\dist\windows-x64" `
+            -RunVersionCheck
 
       - name: Upload Windows zip
         uses: softprops/action-gh-release@v2

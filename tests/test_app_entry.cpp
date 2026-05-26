@@ -56,6 +56,22 @@ TEST_CASE("main returns an error when no audio APIs are available", "[app][entry
     CHECK(errorOutput.str().find("No usable RtAudio APIs found") != std::string::npos);
 }
 
+TEST_CASE("main prints version without initializing runtime services", "[app][entry]")
+{
+    resetEntryTestState();
+
+    std::ostringstream standardOutput;
+    ScopedStreamRedirect redirectOutput(std::cout, standardOutput.rdbuf());
+    char executable[] = "openchordix";
+    char versionFlag[] = "--version";
+    char *argv[] = {executable, versionFlag};
+
+    REQUIRE(openchordix_app_main(2, argv) == 0);
+    CHECK(standardOutput.str().find("OpenChordix 0.0.0") != std::string::npos);
+    CHECK_FALSE(GraphicsFlow::state().constructed);
+    CHECK_FALSE(ConsoleFlow::state().constructed);
+}
+
 TEST_CASE("main forwards debug mode into the graphics flow", "[app][entry]")
 {
     resetEntryTestState();

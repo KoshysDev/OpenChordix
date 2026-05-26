@@ -130,6 +130,17 @@ jobs:
       - name: Test (Release)
         run: ctest --test-dir build --output-on-failure
 
+      - name: Download linuxdeploy
+        run: |
+          curl -fsSL -o linuxdeploy.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy.AppImage
+
+      - name: Package AppImage
+        run: sh scripts/package-appimage.sh
+
+      - name: Validate AppImage
+        run: sh scripts/verify-appimage.sh OpenChordix*.AppImage
+
       - name: Configure (ASan/UBSan)
         run: |
           cmake -B build-sanitize -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -398,3 +409,29 @@ jobs:
         run: |
           $env:PATH = "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin;${{ steps.mingw-path.outputs.mingw_bin }};$env:PATH"
           ctest --test-dir build --output-on-failure
+
+      - name: Stage Windows executable
+        shell: pwsh
+        run: cmake --install build --config Release --prefix "$env:GITHUB_WORKSPACE\dist\windows-install"
+
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          $searchDirectories = @(
+            "$env:GITHUB_WORKSPACE\dist\windows-install",
+            "$env:GITHUB_WORKSPACE\build\src\app",
+            "$env:GITHUB_WORKSPACE\build\vcpkg_installed\x64-mingw-dynamic\bin",
+            "${{ steps.mingw-path.outputs.mingw_bin }}"
+          )
+          & .\scripts\package-windows.ps1 `
+            -ExecutablePath "$env:GITHUB_WORKSPACE\dist\windows-install\OpenChordix.exe" `
+            -OutputDirectory "$env:GITHUB_WORKSPACE\dist\windows-x64" `
+            -SearchDirectories $searchDirectories `
+            -ZipPath "$env:GITHUB_WORKSPACE\OpenChordix-windows-x64.zip"
+
+      - name: Validate Windows zip contents
+        shell: pwsh
+        run: |
+          & .\scripts\verify-windows-package.ps1 `
+            -PackageDirectory "$env:GITHUB_WORKSPACE\dist\windows-x64" `
+            -RunVersionCheck

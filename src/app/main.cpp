@@ -14,6 +14,10 @@
 #include "audio/AudioSession.h"
 #include <console/ConsoleFlow.h>
 
+#ifndef OPENCHORDIX_VERSION
+#define OPENCHORDIX_VERSION "0.0.0"
+#endif
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -77,6 +81,15 @@ namespace
 
 int main(int argc, char **argv)
 {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::string_view(argv[i]) == "--version")
+        {
+            std::cout << "OpenChordix " << OPENCHORDIX_VERSION << std::endl;
+            return 0;
+        }
+    }
+
     std::cout << "OpenChordix" << std::endl;
     std::cout << "RtAudio Version: " << RtAudio::getVersion() << std::endl;
 
