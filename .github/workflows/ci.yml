@@ -16,7 +16,7 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg/binary_cache
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -53,7 +53,7 @@ jobs:
 
       - name: Restore bgfx build cache
         id: bgfx-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: external/bgfx/.build
           key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs.outputs.bgfx }}-${{ steps.bgfx-revs.outputs.bx }}-${{ steps.bgfx-revs.outputs.bimg }}
@@ -64,14 +64,14 @@ jobs:
 
       - name: Save bgfx build cache
         if: steps.bgfx-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: external/bgfx/.build
           key: ${{ steps.bgfx-cache.outputs.cache-primary-key }}
 
       - name: Restore vcpkg artifacts cache
         id: vcpkg-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .cache/vcpkg/binary_cache
@@ -109,7 +109,7 @@ jobs:
 
       - name: Save vcpkg artifacts cache
         if: steps.vcpkg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .cache/vcpkg/binary_cache
@@ -159,7 +159,7 @@ jobs:
       VCPKG_MAX_CONCURRENCY: 2
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -179,14 +179,14 @@ jobs:
 
       - name: Restore bgfx build cache (Windows)
         id: bgfx-cache-win
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: external/bgfx/.build
           key: ${{ runner.os }}-bgfx-${{ steps.bgfx-revs-win.outputs.bgfx }}-${{ steps.bgfx-revs-win.outputs.bx }}-${{ steps.bgfx-revs-win.outputs.bimg }}
 
       - name: Restore vcpkg artifacts cache (Windows)
         id: vcpkg-cache-win
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .cache/vcpkg/binary_cache
@@ -280,7 +280,7 @@ jobs:
 
       - name: Save bgfx build cache (Windows)
         if: steps.bgfx-cache-win.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: external/bgfx/.build
           key: ${{ steps.bgfx-cache-win.outputs.cache-primary-key }}
@@ -367,7 +367,7 @@ jobs:
 
       - name: Save vcpkg artifacts cache (Windows)
         if: steps.vcpkg-cache-win.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .cache/vcpkg/binary_cache
