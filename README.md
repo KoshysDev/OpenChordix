@@ -11,6 +11,8 @@
 *   ✅ Core audio input/output using RtAudio.
 *   ✅ Runtime selection of Audio API (ALSA, Pulse, JACK, Auto).
 *   ✅ Note and Pitch detection.
+*   ✅ Track Editor with chart persistence and Guitar Pro import preview.
+*   ✅ Guitar Pro 5 and readable Guitar Pro 7+ package import.
 *   🛠️ Working on: GUI
 
 ## Key Features Roadmap 🚀
@@ -22,7 +24,7 @@ The project aims to implement the following major features incrementally:
 *   🖥️ **Graphical Interface:** Windowing, menus, settings UI.
 *   🎸 **Visual Tuner:** Clear and responsive tuning mode.
 *   🎼 **Note Highway & Gameplay:** Scrolling notes, hit detection, scoring.
-*   📃 **Song Format & Management:** Loading songs (potential Guitar Pro import).
+*   📃 **Song Format & Management:** Loading songs, chart editing, and Guitar Pro import.
 *   🛠 **Training Tools:** Speed control, section looping.
 *   🎶 **(Stretch) Tone Designer:** Advanced amp/effect simulation.
 *   💻 **Cross-Platform:** Windows compatibility.
@@ -37,6 +39,8 @@ The project aims to implement the following major features incrementally:
 *   **Graphics/Windowing:** BGFX (1.129.x) + GLFW (3.4)
 *   **UI:** Dear ImGui
 *   **Image Loading:** stb
+*   **Guitar Pro 5 Import:** `gp_parser` (vendored, MIT)
+*   **Guitar Pro Package Import:** `miniz` and `pugixml` (MIT)
 
 ## Platform Support 💻
 
