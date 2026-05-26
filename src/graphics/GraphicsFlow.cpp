@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <GLFW/glfw3.h>
@@ -19,6 +20,7 @@
 #include "render/RenderViewIds.h"
 #include "SettingsScene.h"
 #include "TestScene.h"
+#include "trackscene/TrackEditorScene.h"
 #include "TrackSelectScene.h"
 #include "TunerScene.h"
 #include "devtools/commands/CommandList.h"
@@ -91,11 +93,9 @@ std::unique_ptr<Scene> GraphicsFlow::makeScene(SceneId id)
     case SceneId::MainMenu:
         return std::make_unique<MainMenuScene>(ui_);
     case SceneId::TrackSelect:
-    {
-        const bool startInCreateMode = openCreateSongOnTrackSelect_;
-        openCreateSongOnTrackSelect_ = false;
-        return std::make_unique<TrackSelectScene>(ui_, startInCreateMode);
-    }
+        return std::make_unique<TrackSelectScene>(ui_, std::exchange(trackSelectionFocusId_, {}));
+    case SceneId::TrackEditor:
+        return std::make_unique<TrackEditorScene>(ui_, std::exchange(trackEditorTrackId_, {}));
     case SceneId::Tuner:
         return std::make_unique<TunerScene>(audio_, ui_);
     case SceneId::Settings:
@@ -247,13 +247,57 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
                     switchTo(SceneId::TrackSelect);
                     break;
                 case MainMenuScene::Action::OpenCreateSong:
-                    openCreateSongOnTrackSelect_ = true;
-                    switchTo(SceneId::TrackSelect);
+                    trackEditorTrackId_.clear();
+                    trackEditorReturnScene_ = SceneId::MainMenu;
+                    switchTo(SceneId::TrackEditor);
                     break;
                 case MainMenuScene::Action::OpenSettings:
                     switchTo(SceneId::Settings);
                     break;
                 case MainMenuScene::Action::None:
+                    break;
+                }
+            }
+        }
+        else if (sceneId == SceneId::TrackSelect)
+        {
+            if (auto *trackSelect = dynamic_cast<TrackSelectScene *>(currentScene.get()))
+            {
+                switch (trackSelect->consumeAction())
+                {
+                case TrackSelectScene::Action::OpenCreateSong:
+                    trackEditorTrackId_.clear();
+                    trackEditorReturnScene_ = SceneId::TrackSelect;
+                    switchTo(SceneId::TrackEditor);
+                    break;
+                case TrackSelectScene::Action::EditSelectedSong:
+                    trackEditorTrackId_ = trackSelect->takeRequestedTrackId();
+                    trackEditorReturnScene_ = SceneId::TrackSelect;
+                    switchTo(SceneId::TrackEditor);
+                    break;
+                case TrackSelectScene::Action::None:
+                    break;
+                }
+            }
+        }
+        else if (sceneId == SceneId::TrackEditor)
+        {
+            if (auto *trackEditor = dynamic_cast<TrackEditorScene *>(currentScene.get()))
+            {
+                switch (trackEditor->consumeAction())
+                {
+                case TrackEditorScene::Action::Back:
+                    trackSelectionFocusId_ = trackEditor->takeSavedTrackId();
+                    if (!trackSelectionFocusId_.empty())
+                    {
+                        switchTo(SceneId::TrackSelect);
+                    }
+                    else
+                    {
+                        switchTo(trackEditorReturnScene_);
+                    }
+                    break;
+                case TrackEditorScene::Action::None:
                     break;
                 }
             }
@@ -279,6 +323,7 @@ int GraphicsFlow::run(std::atomic<bool> &quitFlag)
             case SceneId::Tuner:
             case SceneId::Settings:
             case SceneId::Test:
+            case SceneId::TrackEditor:
             case SceneId::TrackSelect:
                 switchTo(SceneId::MainMenu);
                 break;

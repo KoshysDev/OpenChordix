@@ -1,89 +1,36 @@
 #include "TrackSelectScene.h"
 
 #include <algorithm>
-#include <array>
-#include <cctype>
 #include <cstdio>
-#include <string>
-#include <string_view>
-#include <vector>
+#include <utility>
 
 #include <imgui/imgui.h>
 
 #include "score/ScoreServiceMemory.h"
 #include "track/TrackCatalogFile.h"
+#include "track/TrackFilePaths.h"
 
 namespace
 {
     const ImVec4 kAccent = ImVec4(0.34f, 0.78f, 0.98f, 1.0f);
     const ImVec4 kMuted = ImVec4(0.70f, 0.78f, 0.90f, 1.0f);
     const ImVec4 kPanelBorder = ImVec4(0.20f, 0.26f, 0.34f, 0.9f);
-
-    std::string trimCopy(std::string_view value)
-    {
-        size_t first = 0;
-        while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first])))
-        {
-            ++first;
-        }
-        size_t last = value.size();
-        while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1])))
-        {
-            --last;
-        }
-        return std::string(value.substr(first, last - first));
-    }
-
-    std::vector<TrackPart> parseParts(std::string_view raw)
-    {
-        std::vector<TrackPart> parts;
-        std::string token;
-        token.reserve(raw.size());
-
-        auto flushToken = [&]()
-        {
-            std::string partName = trimCopy(token);
-            if (!partName.empty())
-            {
-                parts.push_back(TrackPart{partName});
-            }
-            token.clear();
-        };
-
-        for (char ch : raw)
-        {
-            if (ch == ',' || ch == ';')
-            {
-                flushToken();
-                continue;
-            }
-            token.push_back(ch);
-        }
-        flushToken();
-
-        if (parts.empty())
-        {
-            parts.push_back(TrackPart{"Lead Guitar"});
-        }
-        return parts;
-    }
 }
 
-TrackSelectScene::TrackSelectScene(AnimatedUI &ui, bool startInCreateMode)
-    : ui_(ui)
+TrackSelectScene::TrackSelectScene(AnimatedUI &ui, std::string focusTrackId)
+    : ui_(ui),
+      focusTrackId_(std::move(focusTrackId))
 {
     catalog_ = std::make_unique<TrackCatalogFile>();
     scoreService_ = std::make_unique<TrackScoreServiceMemory>();
-    resetSongDraft();
+    previewPlayer_ = std::make_unique<openchordix::track::TrackPreviewPlayer>();
     updateFilter();
-    if (startInCreateMode)
-    {
-        openCreateSongEditor();
-    }
+    applyFocusTrack();
 }
 
 void TrackSelectScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsContext & /*gfx*/, std::atomic<bool> & /*quitFlag*/)
 {
+    previewPlayer_->update();
     ImVec2 screen = ImGui::GetIO().DisplaySize;
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
     ImGui::SetNextWindowSize(screen, ImGuiCond_Always);
@@ -102,13 +49,6 @@ void TrackSelectScene::render(float /*dt*/, const FrameInput & /*input*/, Graphi
         const float contentTop = ImGui::GetCursorPosY();
         const float contentHeight = screen.y - contentTop - pad;
         drawMainPane(screen, contentTop, contentHeight);
-
-        if (openSongEditor_)
-        {
-            ImGui::OpenPopup("Song Editor");
-            openSongEditor_ = false;
-        }
-        drawSongEditorPopup();
 
         if (confirmRemoveSong_)
         {
@@ -134,6 +74,20 @@ void TrackSelectScene::render(float /*dt*/, const FrameInput & /*input*/, Graphi
         }
     }
     ImGui::End();
+}
+
+TrackSelectScene::Action TrackSelectScene::consumeAction()
+{
+    const Action action = pendingAction_;
+    pendingAction_ = Action::None;
+    return action;
+}
+
+std::string TrackSelectScene::takeRequestedTrackId()
+{
+    std::string trackId = std::move(requestedTrackId_);
+    requestedTrackId_.clear();
+    return trackId;
 }
 
 void TrackSelectScene::drawBackground(const ImVec2 &screen)
@@ -204,7 +158,7 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
     {
         if (!hasTracks)
         {
-            ImGui::TextDisabled("No Songs found, try importing existing ones, or create your own.");
+            ImGui::TextDisabled("No songs found. Create a song to start building your local catalog.");
         }
         else
         {
@@ -220,6 +174,7 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
         }
 
         const TrackInfo &track = tracks[selectedIndex_];
+        syncPreviewForSelection();
         if (selectedPart_ < 0 || selectedPart_ >= static_cast<int>(track.parts.size()))
         {
             selectedPart_ = 0;
@@ -287,13 +242,32 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
         }
 
         ImGui::SetCursorPos(ImVec2(leftPos.x, leftPos.y + heroSize.y + 18.0f));
-        const ImVec2 buttonSize(200.0f, 42.0f);
+        const ImVec2 buttonSize(180.0f, 42.0f);
         if (ui_.button("Play", buttonSize))
         {
             showPlayNotice_ = true;
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("Preview unavailable");
+        if (ui_.button(previewPlayer_->isPlaying() && previewTrackId_ == track.id ? "Stop Preview" : "Replay Preview", buttonSize))
+        {
+            if (previewPlayer_->isPlaying() && previewTrackId_ == track.id)
+            {
+                previewPlayer_->stop();
+                previewTrackId_.clear();
+            }
+            else
+            {
+                previewSelectionId_.clear();
+                previewTrackId_.clear();
+                syncPreviewForSelection();
+            }
+        }
+        ImGui::SameLine();
+        if (ui_.button("Edit Selected", buttonSize))
+        {
+            requestedTrackId_ = track.id;
+            pendingAction_ = Action::EditSelectedSong;
+        }
 
         ImGui::SetCursorPos(ImVec2(leftPos.x, leftPos.y + heroSize.y + 68.0f));
         ImGui::BeginChild("score_panel", ImVec2(leftWidth, 190.0f), true, ImGuiWindowFlags_NoScrollbar);
@@ -368,6 +342,16 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
             ImGui::SetCursorPos(ImVec2(leftPos.x, leftPos.y + heroSize.y + 250.0f));
             ImGui::TextColored(kMuted, "Gameplay not implemented yet.");
         }
+        if (!statusMessage_.empty())
+        {
+            ImGui::SetCursorPos(ImVec2(leftPos.x, leftPos.y + heroSize.y + 272.0f));
+            ImGui::TextColored(kMuted, "%s", statusMessage_.c_str());
+        }
+        else
+        {
+            ImGui::SetCursorPos(ImVec2(leftPos.x, leftPos.y + heroSize.y + 272.0f));
+            ImGui::TextColored(kMuted, "%s", previewPlayer_->status().c_str());
+        }
     }
 
     ImGui::SetCursorPos(rightPos);
@@ -395,11 +379,16 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
         updateFilter();
     }
     ImGui::Spacing();
+    if (ImGui::Button("New Song", ImVec2(-1.0f, 34.0f)))
+    {
+        pendingAction_ = Action::OpenCreateSong;
+    }
+    ImGui::Spacing();
 
     ImGui::BeginChild("track_right_list", ImVec2(0, panelSize.y - innerPad * 2.0f - 220.0f), false, ImGuiWindowFlags_NoScrollbar);
     if (filtered_.empty())
     {
-        ImGui::TextDisabled(hasTracks ? "No results." : "No Songs found.");
+        ImGui::TextDisabled(hasTracks ? "No results." : "No songs found.");
     }
     else
     {
@@ -411,10 +400,12 @@ void TrackSelectScene::drawMainPane(const ImVec2 &screen, float top, float heigh
     }
     ImGui::EndChild();
 
-    if (!filtered_.empty() && ImGui::Button("Delete Selected Song", ImVec2(-1.0f, 34.0f)))
+    ImGui::BeginDisabled(filtered_.empty());
+    if (ImGui::Button("Delete Selected Song", ImVec2(-1.0f, 34.0f)))
     {
         confirmRemoveSong_ = true;
     }
+    ImGui::EndDisabled();
 
     ImGui::EndChild();
     ImGui::EndChild();
@@ -470,207 +461,12 @@ void TrackSelectScene::drawTrackRow(const TrackInfo &track, int index, float wid
     ImGui::Spacing();
 }
 
-void TrackSelectScene::drawSongEditorPopup()
-{
-    ImGui::SetNextWindowSize(ImVec2(640.0f, 0.0f), ImGuiCond_Appearing);
-    if (!ImGui::BeginPopupModal("Song Editor", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-        return;
-    }
-
-    ImGui::TextDisabled(editorEditMode_
-                            ? "Edit selected song entry."
-                            : "Create a song entry for the local database.");
-    ImGui::Separator();
-
-    ImGui::InputTextWithHint("Title", "Song title", draftTitle_.data(), draftTitle_.size());
-    ImGui::InputTextWithHint("Artist", "Artist name", draftArtist_.data(), draftArtist_.size());
-    ImGui::InputTextWithHint("Source", "Album/Pack/Genre", draftSource_.data(), draftSource_.size());
-    ImGui::InputTextWithHint("Mapper", "Your name", draftMapper_.data(), draftMapper_.size());
-
-    ImGui::InputInt("BPM", &draftBpm_);
-    if (draftBpm_ < 1)
-    {
-        draftBpm_ = 1;
-    }
-
-    ImGui::InputTextWithHint("Parts", "Lead Guitar, Rhythm Guitar, Bass", draftParts_.data(), draftParts_.size());
-    ImGui::TextDisabled("Chart folder and chart file are created automatically in Songs/.");
-
-    ImGui::Separator();
-    if (ImGui::Button(editorEditMode_ ? "Save Changes" : "Create Song", ImVec2(160.0f, 0.0f)))
-    {
-        if (addSongFromDraft())
-        {
-            ImGui::CloseCurrentPopup();
-        }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset", ImVec2(120.0f, 0.0f)))
-    {
-        if (editorEditMode_ && !filtered_.empty())
-        {
-            const auto &tracks = catalog_->tracks();
-            if (selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(tracks.size()))
-            {
-                loadDraftFromTrack(tracks[selectedIndex_]);
-            }
-        }
-        else
-        {
-            resetSongDraft();
-        }
-        editorStatus_.clear();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Close", ImVec2(120.0f, 0.0f)))
-    {
-        editorEditMode_ = false;
-        editingSongId_.clear();
-        ImGui::CloseCurrentPopup();
-    }
-
-    if (!editorStatus_.empty())
-    {
-        ImGui::Spacing();
-        ImGui::TextColored(kMuted, "%s", editorStatus_.c_str());
-    }
-
-    ImGui::EndPopup();
-}
-
-void TrackSelectScene::openCreateSongEditor()
-{
-    editorEditMode_ = false;
-    editingSongId_.clear();
-    editorStatus_.clear();
-    resetSongDraft();
-    openSongEditor_ = true;
-}
-
-void TrackSelectScene::loadDraftFromTrack(const TrackInfo &track)
-{
-    resetSongDraft();
-
-    auto copyText = [](auto &buffer, const std::string &value)
-    {
-        std::snprintf(buffer.data(), buffer.size(), "%s", value.c_str());
-    };
-
-    copyText(draftTitle_, track.title);
-    copyText(draftArtist_, track.artist);
-    copyText(draftSource_, track.source);
-    copyText(draftMapper_, track.mapper);
-
-    std::string partsJoined;
-    for (size_t i = 0; i < track.parts.size(); ++i)
-    {
-        if (i != 0)
-        {
-            partsJoined += ", ";
-        }
-        partsJoined += track.parts[i].name;
-    }
-    copyText(draftParts_, partsJoined);
-    draftBpm_ = std::max(1, track.bpm);
-}
-
-void TrackSelectScene::resetSongDraft()
-{
-    draftTitle_.fill('\0');
-    draftArtist_.fill('\0');
-    draftSource_.fill('\0');
-    draftMapper_.fill('\0');
-    draftParts_.fill('\0');
-
-    draftBpm_ = 120;
-    std::snprintf(draftParts_.data(), draftParts_.size(), "Lead Guitar, Rhythm Guitar, Bass");
-}
-
-bool TrackSelectScene::addSongFromDraft()
-{
-    TrackInfo track;
-    track.title = trimCopy(draftTitle_.data());
-    track.artist = trimCopy(draftArtist_.data());
-    track.source = trimCopy(draftSource_.data());
-    track.mapper = trimCopy(draftMapper_.data());
-    track.bpm = draftBpm_;
-    track.parts = parseParts(draftParts_.data());
-
-    if (track.title.empty())
-    {
-        editorStatus_ = "Song title is required.";
-        return false;
-    }
-    if (track.artist.empty())
-    {
-        editorStatus_ = "Artist is required.";
-        return false;
-    }
-    if (track.bpm <= 0)
-    {
-        editorStatus_ = "BPM must be greater than 0.";
-        return false;
-    }
-
-    std::string persistedId;
-    if (editorEditMode_)
-    {
-        if (editingSongId_.empty())
-        {
-            editorStatus_ = "No song selected for edit.";
-            return false;
-        }
-        if (!catalog_->updateTrack(editingSongId_, track))
-        {
-            editorStatus_ = "Failed to update song. Verify DB file permissions and fields.";
-            return false;
-        }
-        persistedId = editingSongId_;
-        editorStatus_ = "Song updated.";
-    }
-    else
-    {
-        if (!catalog_->addTrack(track))
-        {
-            editorStatus_ = "Failed to add song. Verify DB file permissions and fields.";
-            return false;
-        }
-        if (!catalog_->tracks().empty())
-        {
-            persistedId = catalog_->tracks().back().id;
-        }
-        editorStatus_ = "Song added.";
-    }
-
-    search_.fill('\0');
-    updateFilter();
-    if (!persistedId.empty())
-    {
-        const auto &tracks = catalog_->tracks();
-        for (size_t i = 0; i < tracks.size(); ++i)
-        {
-            if (tracks[i].id == persistedId)
-            {
-                selectedIndex_ = static_cast<int>(i);
-                selectedPart_ = 0;
-                break;
-            }
-        }
-    }
-
-    editorEditMode_ = false;
-    editingSongId_.clear();
-    resetSongDraft();
-    return true;
-}
-
 bool TrackSelectScene::removeSelectedSong()
 {
     const auto &tracks = catalog_->tracks();
     if (tracks.empty() || filtered_.empty())
     {
-        editorStatus_ = "No song selected.";
+        statusMessage_ = "No song selected.";
         return false;
     }
 
@@ -678,25 +474,19 @@ bool TrackSelectScene::removeSelectedSong()
     const std::string selectedId = tracks[selectedIndex_].id;
     if (selectedId.empty())
     {
-        editorStatus_ = "Selected song has no valid id.";
+        statusMessage_ = "Selected song has no valid id.";
         return false;
     }
 
     if (!catalog_->removeTrack(selectedId))
     {
-        editorStatus_ = "Failed to remove selected song.";
+        statusMessage_ = "Failed to remove selected song.";
         return false;
-    }
-
-    if (editingSongId_ == selectedId)
-    {
-        editorEditMode_ = false;
-        editingSongId_.clear();
     }
 
     updateFilter();
     showPlayNotice_ = false;
-    editorStatus_ = "Song removed.";
+    statusMessage_ = "Song removed.";
     return true;
 }
 
@@ -714,5 +504,74 @@ void TrackSelectScene::updateFilter()
     {
         selectedIndex_ = filtered_.front();
         selectedPart_ = 0;
+    }
+}
+
+void TrackSelectScene::applyFocusTrack()
+{
+    if (focusTrackId_.empty())
+    {
+        return;
+    }
+
+    const auto &tracks = catalog_->tracks();
+    const auto it = std::find_if(
+        tracks.begin(),
+        tracks.end(),
+        [&](const TrackInfo &track)
+        {
+            return track.id == focusTrackId_;
+        });
+    if (it == tracks.end())
+    {
+        focusTrackId_.clear();
+        return;
+    }
+
+    const int index = static_cast<int>(std::distance(tracks.begin(), it));
+    if (std::find(filtered_.begin(), filtered_.end(), index) != filtered_.end())
+    {
+        selectedIndex_ = index;
+        selectedPart_ = 0;
+    }
+    focusTrackId_.clear();
+}
+
+void TrackSelectScene::syncPreviewForSelection()
+{
+    if (filtered_.empty())
+    {
+        previewPlayer_->stop();
+        previewSelectionId_.clear();
+        previewTrackId_.clear();
+        return;
+    }
+
+    const auto &tracks = catalog_->tracks();
+    if (selectedIndex_ < 0 || selectedIndex_ >= static_cast<int>(tracks.size()))
+    {
+        return;
+    }
+
+    const TrackInfo &track = tracks[selectedIndex_];
+    if (previewSelectionId_ == track.id)
+    {
+        return;
+    }
+
+    previewSelectionId_ = track.id;
+    previewPlayer_->stop();
+    previewTrackId_ = track.id;
+
+    const std::filesystem::path audioPath =
+        openchordix::track::resolveAudioPath(track, catalog_->storagePath().parent_path());
+    if (audioPath.empty())
+    {
+        return;
+    }
+
+    if (!previewPlayer_->play(audioPath, track.previewStartSeconds))
+    {
+        previewTrackId_.clear();
     }
 }

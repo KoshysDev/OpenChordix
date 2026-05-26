@@ -13,6 +13,7 @@ add_executable(OpenChordix
     scenes/IntroScene.cpp
     scenes/AudioSetupScene.cpp
     scenes/MainMenuScene.cpp
+    scenes/trackscene/TrackEditorScene.cpp
     scenes/TrackSelectScene.cpp
     scenes/SettingsScene.cpp
     scenes/TunerScene.cpp
