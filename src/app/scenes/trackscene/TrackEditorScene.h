@@ -112,6 +112,7 @@ private:
     double displayedCursorSeconds() const;
     int timelineTotalBeats() const;
     int timelineTotalTicks() const;
+    openchordix::track::TempoMap currentTempoMap() const;
     double timelineTickFromSeconds(double seconds) const;
     double timelineSecondsFromTick(double tick) const;
     void pausePreviewPlayback();
@@ -120,6 +121,7 @@ private:
     void requestTimelineSync();
     void syncTimelineScrollToSeconds(double seconds, float viewportWidth = -1.0f);
     bool startPreviewFromCursor();
+    void refreshTimingPreview();
 
     AnimatedUI &ui_;
     std::unique_ptr<TrackCatalog> catalog_;
@@ -168,6 +170,15 @@ private:
     bool openAddTuning_ = false;
     bool openImportPreview_ = false;
     bool applyImportedTempo_ = true;
+    bool showTimingDiagnostics_ = false;
+    bool metronomeEnabled_ = false;
+    bool noteClicksEnabled_ = false;
+    bool songMuted_ = false;
+    bool metronomeMuted_ = false;
+    bool notePreviewMuted_ = false;
+    float songVolume_ = 1.0f;
+    float metronomeVolume_ = 0.65f;
+    float notePreviewVolume_ = 0.75f;
     bool draggingNote_ = false;
     int draggingNoteIndex_ = -1;
     int dragGrabTickOffset_ = 0;

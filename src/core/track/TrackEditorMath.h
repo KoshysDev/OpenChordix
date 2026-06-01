@@ -111,4 +111,14 @@ namespace openchordix::track::editor
         return std::max(0.0, tick) / static_cast<double>(std::max(1, ticksPerBeat)) *
                60.0 / static_cast<double>(std::max(1, bpm));
     }
+
+    inline double chartSecondsFromAudioSeconds(double audioSeconds, int chartAudioOffsetMs)
+    {
+        return std::max(0.0, audioSeconds - static_cast<double>(chartAudioOffsetMs) / 1000.0);
+    }
+
+    inline double audioSecondsFromChartSeconds(double chartSeconds, int chartAudioOffsetMs)
+    {
+        return std::max(0.0, chartSeconds + static_cast<double>(chartAudioOffsetMs) / 1000.0);
+    }
 }

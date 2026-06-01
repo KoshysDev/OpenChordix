@@ -4,6 +4,7 @@
 
 #include "trackscene/TrackEditorShared.h"
 #include "trackscene/TrackEditorWidgets.h"
+#include "track/ChartNotePreviewSynth.h"
 #include "track/TrackAudioDuration.h"
 #include "track/TrackCatalogFile.h"
 #include "track/TrackFilePaths.h"

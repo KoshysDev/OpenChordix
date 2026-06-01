@@ -77,6 +77,16 @@ void TrackEditorScene::renderSongMenu()
     if (ImGui::MenuItem("Apply Imported Tempo", nullptr, false, hasImportedTempo))
     {
         draftBpm_ = std::max(1, static_cast<int>(std::lround(importedSong_->tempos.front().beatsPerMinute)));
+        std::vector<openchordix::track::TempoEvent> events;
+        events.reserve(importedSong_->tempos.size());
+        for (const auto &tempo : importedSong_->tempos)
+        {
+            const long long scaled = static_cast<long long>(std::max(0, tempo.tick)) *
+                                     static_cast<long long>(std::max(1, chart_.ticksPerBeat()));
+            const long long source = static_cast<long long>(std::max(1, importedSong_->ticksPerBeat));
+            events.push_back({static_cast<int>((scaled + source / 2) / source), tempo.beatsPerMinute, "import"});
+        }
+        chart_.setTempoEvents(std::move(events), static_cast<double>(draftBpm_));
         applyImportedTempo_ = true;
         statusMessage_ = "Imported tempo applied.";
     }
@@ -226,6 +236,8 @@ void TrackEditorScene::renderViewMenu()
     {
         zoom_ = 1.0f;
     }
+    ImGui::Separator();
+    ImGui::MenuItem("Timing Diagnostics", nullptr, &showTimingDiagnostics_);
     ImGui::Separator();
     if (ImGui::BeginMenu("Snap"))
     {

@@ -12,6 +12,8 @@
 #include <string_view>
 
 #include "gp_parser.h"
+#include "track/TempoMap.h"
+#include "track/TrackTiming.h"
 #include "track/TuningLibrary.h"
 #include "track/import/GuitarPro7Importer.h"
 
@@ -126,9 +128,8 @@ namespace openchordix::track::imports
         {
             const int numerator = std::max(1, static_cast<int>(header.timeSignature.numerator));
             const int denominator = std::max(1, static_cast<int>(header.timeSignature.denominator.value));
-            const std::int64_t scaled = static_cast<std::int64_t>(numerator) *
-                                        static_cast<std::int64_t>(kGpTicksPerBeat) * 4;
-            return std::max(1, static_cast<int>((scaled + denominator / 2) / denominator));
+            return openchordix::track::measureLengthTicks(kGpTicksPerBeat, numerator, denominator)
+                .value_or(kGpTicksPerBeat * 4);
         }
 
         std::string lowercase(std::string text)
@@ -268,21 +269,14 @@ namespace openchordix::track::imports
 
         void calculateDurationSeconds(ImportedSong &song)
         {
-            double bpm = song.tempos.empty() ? 120.0 : song.tempos.front().beatsPerMinute;
-            int precedingTick = 0;
+            std::vector<openchordix::track::TempoEvent> events;
+            events.reserve(song.tempos.size());
             for (const TempoEvent &tempo : song.tempos)
             {
-                const int tick = std::clamp(tempo.tick, precedingTick, song.durationTicks);
-                song.durationSeconds += static_cast<double>(tick - precedingTick) /
-                                        static_cast<double>(song.ticksPerBeat) * 60.0 / bpm;
-                precedingTick = tick;
-                if (tempo.beatsPerMinute > 0.0)
-                {
-                    bpm = tempo.beatsPerMinute;
-                }
+                events.push_back({tempo.tick, tempo.beatsPerMinute, "import"});
             }
-            song.durationSeconds += static_cast<double>(song.durationTicks - precedingTick) /
-                                    static_cast<double>(song.ticksPerBeat) * 60.0 / bpm;
+            const openchordix::track::TempoMap map(song.ticksPerBeat, std::move(events));
+            song.durationSeconds = map.tickToSeconds(song.durationTicks);
         }
 
         ImportedSong convertFile(const gp_parser::TabFile &file,
@@ -298,6 +292,7 @@ namespace openchordix::track::imports
             song.artist = file.artist;
             song.album = file.album;
             song.ticksPerBeat = kGpTicksPerBeat;
+            std::vector<std::string> timingWarnings;
 
             for (const gp_parser::MeasureHeader &header : file.measureHeaders)
             {
@@ -307,6 +302,10 @@ namespace openchordix::track::imports
                 measure.denominator = std::max(1, static_cast<int>(header.timeSignature.denominator.value));
                 measure.startTick = importedTick(header.start);
                 measure.durationTicks = measureDuration(header);
+                if (!openchordix::track::measureLengthTicks(kGpTicksPerBeat, measure.numerator, measure.denominator).has_value())
+                {
+                    timingWarnings.push_back("Unsupported time signature in measure " + std::to_string(measure.number));
+                }
                 song.measures.push_back(measure);
             }
             if (!song.measures.empty())
@@ -317,16 +316,33 @@ namespace openchordix::track::imports
 
             const double baseTempo = file.tempoValue > 0 ? static_cast<double>(file.tempoValue) : 120.0;
             song.tempos.push_back({0, baseTempo});
+            for (const gp_parser::TempoChange &change : file.tempoChanges)
+            {
+                const int tick = importedTick(change.tick);
+                if (change.value > 0)
+                {
+                    song.tempos.push_back({tick, static_cast<double>(change.value)});
+                }
+            }
             for (std::size_t index = 0; index < file.measureHeaders.size(); ++index)
             {
                 const int value = file.measureHeaders[index].tempo.value;
                 const int tick = index < song.measures.size() ? song.measures[index].startTick : 0;
-                if (value > 0 && (song.tempos.back().beatsPerMinute != value ||
-                                  song.tempos.back().tick != tick))
+                if (value > 0)
                 {
                     song.tempos.push_back({tick, static_cast<double>(value)});
                 }
             }
+            std::stable_sort(song.tempos.begin(), song.tempos.end(),
+                             [](const TempoEvent &left, const TempoEvent &right)
+                             { return left.tick < right.tick; });
+            song.tempos.erase(std::unique(song.tempos.begin(), song.tempos.end(),
+                                          [](const TempoEvent &left, const TempoEvent &right)
+                                          {
+                                              return left.tick == right.tick &&
+                                                     left.beatsPerMinute == right.beatsPerMinute;
+                                          }),
+                              song.tempos.end());
 
             song.parts.reserve(file.tracks.size());
             for (const gp_parser::Track &track : file.tracks)
@@ -344,6 +360,14 @@ namespace openchordix::track::imports
                 }
                 classifyPart(part, file, track);
                 addNotes(part, track);
+                for (const std::string &warning : timingWarnings)
+                {
+                    if (!part.status.empty())
+                    {
+                        part.status += "; ";
+                    }
+                    part.status += warning;
+                }
                 if (part.notes.empty())
                 {
                     part.importByDefault = false;

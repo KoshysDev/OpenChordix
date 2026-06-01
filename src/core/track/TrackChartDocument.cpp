@@ -130,6 +130,28 @@ namespace
             {"pickup", measure.pickup},
         };
     }
+
+    openchordix::track::TempoEvent tempoEventFromJson(const json &value)
+    {
+        openchordix::track::TempoEvent event;
+        event.tick = std::max(0, value.value("tick", 0));
+        event.bpm = value.value("bpm", openchordix::track::TempoMap::kDefaultBpm);
+        event.source = value.value("source", "");
+        return event;
+    }
+
+    json tempoEventToJson(const openchordix::track::TempoEvent &event)
+    {
+        json value = {
+            {"tick", std::max(0, event.tick)},
+            {"bpm", event.bpm},
+        };
+        if (!event.source.empty())
+        {
+            value["source"] = event.source;
+        }
+        return value;
+    }
 }
 
 bool TrackChartDocument::load(const std::filesystem::path &chartPath)
@@ -167,6 +189,26 @@ bool TrackChartDocument::load(const std::filesystem::path &chartPath)
     setTicksPerBeat(root.value("ticks_per_beat", kDefaultTicksPerBeat));
     setBeatsPerMeasure(root.value("beats_per_measure", kDefaultBeatsPerMeasure));
     setPreviewStartSeconds(root.value("preview_start", 0.0));
+    setChartAudioOffsetMs(root.value("chart_audio_offset_ms", 0));
+    const double fallbackBpm = static_cast<double>(std::max(1, root.value("bpm", static_cast<int>(openchordix::track::TempoMap::kDefaultBpm))));
+
+    std::vector<openchordix::track::TempoEvent> tempoEvents;
+    if (const auto temposIt = root.find("tempo_events"); temposIt != root.end() && temposIt->is_array())
+    {
+        tempoEvents.reserve(temposIt->size());
+        for (const auto &entry : *temposIt)
+        {
+            if (entry.is_object())
+            {
+                tempoEvents.push_back(tempoEventFromJson(entry));
+            }
+        }
+    }
+    if (tempoEvents.empty())
+    {
+        tempoEvents.push_back({0, fallbackBpm, "chart bpm"});
+    }
+    setTempoEvents(std::move(tempoEvents), fallbackBpm);
 
     if (const auto measuresIt = root.find("measures"); measuresIt != root.end() && measuresIt->is_array())
     {
@@ -267,7 +309,14 @@ bool TrackChartDocument::save(const std::filesystem::path &chartPath, const Trac
     }
     root["ticks_per_beat"] = ticksPerBeat_;
     root["beats_per_measure"] = beatsPerMeasure_;
+    root["tempo_events"] = json::array();
+    const openchordix::track::TempoMap map = tempoMap(static_cast<double>(std::max(1, track.bpm)));
+    for (const openchordix::track::TempoEvent &event : map.events())
+    {
+        root["tempo_events"].push_back(tempoEventToJson(event));
+    }
     root["preview_start"] = previewStartSeconds_;
+    root["chart_audio_offset_ms"] = chartAudioOffsetMs_;
     root["measures"] = json::array();
     for (const TrackChartMeasure &measure : measures_)
     {
@@ -298,9 +347,11 @@ void TrackChartDocument::clear()
 {
     notes_.clear();
     measures_.clear();
+    tempoEvents_ = {{0, openchordix::track::TempoMap::kDefaultBpm, "default"}};
     ticksPerBeat_ = kDefaultTicksPerBeat;
     beatsPerMeasure_ = kDefaultBeatsPerMeasure;
     previewStartSeconds_ = 0.0;
+    chartAudioOffsetMs_ = 0;
     lastError_.clear();
 }
 
@@ -317,6 +368,22 @@ void TrackChartDocument::setBeatsPerMeasure(int value)
 void TrackChartDocument::setPreviewStartSeconds(double value)
 {
     previewStartSeconds_ = std::max(0.0, value);
+}
+
+void TrackChartDocument::setChartAudioOffsetMs(int value)
+{
+    chartAudioOffsetMs_ = std::clamp(value, -600000, 600000);
+}
+
+void TrackChartDocument::setTempoEvents(std::vector<openchordix::track::TempoEvent> events, double fallbackBpm)
+{
+    openchordix::track::TempoMap map(ticksPerBeat_, std::move(events), fallbackBpm);
+    tempoEvents_ = map.events();
+}
+
+openchordix::track::TempoMap TrackChartDocument::tempoMap(double fallbackBpm) const
+{
+    return openchordix::track::TempoMap(ticksPerBeat_, tempoEvents_, fallbackBpm);
 }
 
 int TrackChartDocument::timelineEndTick() const

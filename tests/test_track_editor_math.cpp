@@ -51,3 +51,14 @@ TEST_CASE("TrackEditor math keeps timeline conversions stable", "[track][editor]
     const double clampedTick = timelineTickFromSeconds(120.0, 120, 48, 90);
     CHECK(clampedTick == Catch::Approx(timelineTickFromSeconds(90.0, 120, 48, 90)));
 }
+
+TEST_CASE("TrackEditor math applies chart audio offset semantics", "[track][editor][timing]")
+{
+    using namespace openchordix::track::editor;
+
+    CHECK(chartSecondsFromAudioSeconds(0.5, 0) == Catch::Approx(0.5));
+    CHECK(chartSecondsFromAudioSeconds(0.5, 100) == Catch::Approx(0.4));
+    CHECK(chartSecondsFromAudioSeconds(0.5, -100) == Catch::Approx(0.6));
+    CHECK(audioSecondsFromChartSeconds(0.4, 100) == Catch::Approx(0.5));
+    CHECK(audioSecondsFromChartSeconds(0.6, -100) == Catch::Approx(0.5));
+}

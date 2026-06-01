@@ -38,24 +38,37 @@ double TrackEditorScene::displayedCursorSeconds() const
 
 int TrackEditorScene::timelineTotalBeats() const
 {
-    return openchordix::track::editor::timelineTotalBeats(songDurationSeconds(), draftBpm_, chart_.beatsPerMeasure());
+    const int totalTicks = timelineTotalTicks();
+    return std::max(chart_.beatsPerMeasure() * 4,
+                    static_cast<int>(std::ceil(static_cast<double>(totalTicks) /
+                                               static_cast<double>(chart_.ticksPerBeat()))));
 }
 
 int TrackEditorScene::timelineTotalTicks() const
 {
+    const openchordix::track::TempoMap map = currentTempoMap();
     return std::max(
-        openchordix::track::editor::timelineTotalTicks(songDurationSeconds(), draftBpm_, chart_.beatsPerMeasure(), chart_.ticksPerBeat()),
+        map.secondsToTick(static_cast<double>(songDurationSeconds())),
         chart_.timelineEndTick());
+}
+
+openchordix::track::TempoMap TrackEditorScene::currentTempoMap() const
+{
+    return chart_.tempoMap(static_cast<double>(std::max(1, draftBpm_)));
 }
 
 double TrackEditorScene::timelineTickFromSeconds(double seconds) const
 {
-    return openchordix::track::editor::timelineTickFromSeconds(seconds, draftBpm_, chart_.ticksPerBeat(), songDurationSeconds());
+    const double audioSeconds = clampTransportCursor(seconds);
+    const double chartSeconds =
+        openchordix::track::editor::chartSecondsFromAudioSeconds(audioSeconds, chart_.chartAudioOffsetMs());
+    return static_cast<double>(currentTempoMap().secondsToTick(chartSeconds));
 }
 
 double TrackEditorScene::timelineSecondsFromTick(double tick) const
 {
-    return openchordix::track::editor::timelineSecondsFromTick(tick, draftBpm_, chart_.ticksPerBeat());
+    const double chartSeconds = currentTempoMap().tickToSeconds(static_cast<int>(std::lround(std::max(0.0, tick))));
+    return openchordix::track::editor::audioSecondsFromChartSeconds(chartSeconds, chart_.chartAudioOffsetMs());
 }
 
 void TrackEditorScene::pausePreviewPlayback()
@@ -138,6 +151,7 @@ bool TrackEditorScene::startPreviewFromCursor()
     }
 
     transportCursorSeconds_ = clampTransportCursor(transportCursorSeconds_);
+    refreshTimingPreview();
     if (!previewPlayer_->play(audioPath, transportCursorSeconds_))
     {
         statusMessage_ = previewPlayer_->status();
@@ -146,4 +160,58 @@ bool TrackEditorScene::startPreviewFromCursor()
 
     statusMessage_.clear();
     return true;
+}
+
+void TrackEditorScene::refreshTimingPreview()
+{
+    openchordix::track::TrackPreviewMixSettings settings;
+    settings.songVolume = std::clamp(songVolume_, 0.0f, 1.0f);
+    settings.songMuted = songMuted_;
+    settings.metronomeVolume = std::clamp(metronomeVolume_, 0.0f, 1.0f);
+    settings.metronomeMuted = metronomeMuted_;
+    settings.metronomeEnabled = metronomeEnabled_;
+    settings.notePreviewVolume = std::clamp(notePreviewVolume_, 0.0f, 1.0f);
+    settings.notePreviewMuted = notePreviewMuted_;
+    settings.notePreviewEnabled = noteClicksEnabled_;
+    previewPlayer_->setMixSettings(settings);
+
+    std::vector<openchordix::track::TrackPreviewTimingMeasure> measures;
+    measures.reserve(chart_.measures().size());
+    for (const TrackChartMeasure &measure : chart_.measures())
+    {
+        measures.push_back({
+            measure.startTick,
+            measure.durationTicks,
+            measure.numerator,
+            measure.denominator,
+        });
+    }
+
+    std::vector<openchordix::track::TrackPreviewTimingNote> notes;
+    notes.reserve(chart_.notes().size());
+    const std::vector<TrackPart> parts = collectParts();
+    for (const TrackTabNote &note : chart_.notes())
+    {
+        const auto part = std::find_if(parts.begin(), parts.end(),
+                                       [&](const TrackPart &candidate)
+                                       { return candidate.name == note.part; });
+        const std::vector<std::string> tuning = part != parts.end()
+                                                    ? openchordix::track::normalizeTrackTuning(part->tuning, part->name, part->stringCount)
+                                                    : openchordix::track::defaultTuningForPart(note.part, openchordix::track::kDefaultTrackStrings);
+        const auto midi = openchordix::track::chartNoteMidiForStringFret(tuning, note.stringIndex, note.fret);
+        notes.push_back({
+            note.tick,
+            note.duration,
+            note.stringIndex,
+            note.fret,
+            midi.value_or(-1),
+            midi.has_value() ? openchordix::track::chartNoteFrequencyForMidi(*midi) : 0.0,
+        });
+    }
+
+    previewPlayer_->setTimingPreview(chart_.ticksPerBeat(),
+                                     currentTempoMap().events(),
+                                     std::move(measures),
+                                     std::move(notes),
+                                     chart_.chartAudioOffsetMs());
 }

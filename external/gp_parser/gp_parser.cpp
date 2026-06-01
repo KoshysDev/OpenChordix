@@ -484,8 +484,13 @@ void Parser::readMeasure(Measure& measure, Track& track, Tempo& tempo, std::int8
 /* Get measure length */
 std::int32_t Parser::getLength(MeasureHeader& header)
 {
-	return static_cast<std::int32_t>(std::round(header.timeSignature.numerator *
-		getTime(denominatorToDuration(header.timeSignature.denominator))));
+	const auto numerator = static_cast<std::int32_t>(header.timeSignature.numerator);
+	const auto denominator = static_cast<std::int32_t>(header.timeSignature.denominator.value);
+	if (numerator <= 0 || denominator <= 0)
+		return QUARTER_TIME * 4;
+	const auto wholeNoteTicks = static_cast<std::int64_t>(QUARTER_TIME) * 4;
+	const auto scaled = static_cast<std::int64_t>(numerator) * wholeNoteTicks;
+	return static_cast<std::int32_t>(std::max<std::int64_t>(1, scaled / denominator));
 }
 
 /* Adds a new measure to the beat */
@@ -505,7 +510,7 @@ Beat& Parser::getBeat(Measure& measure, std::int32_t start)
 }
 
 /* Read mix change */
-void Parser::readMixChange(Tempo& tempo)
+void Parser::readMixChange(Tempo& tempo, std::int32_t tick)
 {
 	readByte(); // instrument
 
@@ -532,6 +537,7 @@ void Parser::readMixChange(Tempo& tempo)
 		readByte();
 	if (tempoValue >= 0) {
 		tempo.value = tempoValue;
+		tempoChanges.push_back({tick, tempoValue});
 		skip(1);
 		if (versionIndex > 0)
 			skip(1);
@@ -714,7 +720,7 @@ double Parser::readBeat(std::int32_t start, Measure& measure, Track& track, Temp
 	if ((flags & 0x08) != 0)
 		readBeatEffects(beat, effect);
 	if ((flags & 0x10) != 0)
-		readMixChange(tempo);
+		readMixChange(tempo, start);
 	auto stringFlags = readUnsignedByte();
 	for (auto i = 6; i >= 0; --i) {
 		if ((stringFlags & (1 << i)) != 0 && (6 - i) < track.strings.size()) {
@@ -972,7 +978,7 @@ TabFile Parser::getTabFile()
 		       lyricsAuthor, musicAuthor, copyright, tab,
 		       instructions, comments, lyric, tempoValue,
 		       globalKeySignature, channels, measures,
-		       trackCount, measureHeaders, tracks);
+		       trackCount, measureHeaders, tracks, tempoChanges);
 }
 
 /* Tells us how many digits there are in a base 10 number */

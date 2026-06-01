@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
@@ -16,6 +17,8 @@
 #include <miniz.h>
 #include <pugixml.hpp>
 
+#include "track/TempoMap.h"
+#include "track/TrackTiming.h"
 #include "track/TuningLibrary.h"
 
 namespace openchordix::track::imports
@@ -509,9 +512,7 @@ namespace openchordix::track::imports
                 }
                 const ImportedMeasure &last = song.measures.back();
                 song.durationTicks = last.startTick + last.durationTicks;
-                const double bpm = song.tempos.empty() ? 120.0 : song.tempos.front().beatsPerMinute;
-                song.durationSeconds = static_cast<double>(song.durationTicks) /
-                                       static_cast<double>(song.ticksPerBeat) * 60.0 / bpm;
+                song.durationSeconds = tempoMap(song).tickToSeconds(song.durationTicks);
                 return ImportResult<ImportedSong>::success(std::move(song));
             }
 
@@ -547,8 +548,11 @@ namespace openchordix::track::imports
                         numerator = parseInt(time.substr(0, slash)).value_or(4);
                         denominator = parseInt(time.substr(slash + 1)).value_or(4);
                     }
-                    if (numerator <= 0 || numerator > 1000 || denominator <= 0 || denominator > 1024)
+                    const auto durationTicks =
+                        openchordix::track::measureLengthTicks(kGpifTicksPerBeat, numerator, denominator);
+                    if (!durationTicks.has_value() || numerator > 1000 || denominator > 1024)
                     {
+                        timingWarnings_.push_back("Skipped master bar with unsupported time signature '" + time + "'");
                         continue;
                     }
                     ImportedMeasure measure;
@@ -556,7 +560,7 @@ namespace openchordix::track::imports
                     measure.numerator = numerator;
                     measure.denominator = denominator;
                     measure.startTick = startTick;
-                    measure.durationTicks = std::max(1, numerator * kGpifTicksPerBeat * 4 / denominator);
+                    measure.durationTicks = *durationTicks;
                     measure.pickup = hasPickup && measure.number == 1;
                     startTick += measure.durationTicks;
                     ParsedMasterBar master{measure, splitText(childText(node, "Bars"))};
@@ -852,12 +856,12 @@ namespace openchordix::track::imports
                     {
                         continue;
                     }
+                    const ImportedMeasure &measure = song.measures[static_cast<std::size_t>(bar)];
                     const double position = parseDouble(childText(automation, "Position")).value_or(0.0);
-                    if (position != 0.0)
-                    {
-                        continue;
-                    }
-                    song.tempos.push_back({song.measures[static_cast<std::size_t>(bar)].startTick, *bpm});
+                    const int offset = position > 0.0 && position <= 1.0
+                                           ? static_cast<int>(std::llround(position * measure.durationTicks))
+                                           : static_cast<int>(std::llround(std::max(0.0, position)));
+                    song.tempos.push_back({measure.startTick + std::clamp(offset, 0, measure.durationTicks), *bpm});
                 }
                 if (song.tempos.empty())
                 {
@@ -866,6 +870,24 @@ namespace openchordix::track::imports
                 std::sort(song.tempos.begin(), song.tempos.end(),
                           [](const TempoEvent &left, const TempoEvent &right)
                           { return left.tick < right.tick; });
+                song.tempos.erase(std::unique(song.tempos.begin(), song.tempos.end(),
+                                              [](const TempoEvent &left, const TempoEvent &right)
+                                              {
+                                                  return left.tick == right.tick &&
+                                                         left.beatsPerMinute == right.beatsPerMinute;
+                                              }),
+                                  song.tempos.end());
+            }
+
+            openchordix::track::TempoMap tempoMap(const ImportedSong &song) const
+            {
+                std::vector<openchordix::track::TempoEvent> events;
+                events.reserve(song.tempos.size());
+                for (const TempoEvent &tempo : song.tempos)
+                {
+                    events.push_back({tempo.tick, tempo.beatsPerMinute, "gpif"});
+                }
+                return openchordix::track::TempoMap(song.ticksPerBeat, std::move(events));
             }
 
             void materializeParts(ImportedSong &song)
@@ -877,6 +899,10 @@ namespace openchordix::track::imports
                     if (!pickupTimingWarning_.empty())
                     {
                         addWarning(part, pickupTimingWarning_);
+                    }
+                    for (const std::string &warning : timingWarnings_)
+                    {
+                        addWarning(part, warning);
                     }
                     for (std::size_t measureIndex = 0; measureIndex < masterBars_.size(); ++measureIndex)
                     {
@@ -986,6 +1012,7 @@ namespace openchordix::track::imports
             std::unordered_map<std::string, ParsedVoice> voices_;
             std::unordered_map<std::string, ParsedBar> bars_;
             std::string pickupTimingWarning_;
+            std::vector<std::string> timingWarnings_;
         };
     }
 

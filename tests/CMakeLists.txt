@@ -1,6 +1,7 @@
 find_package(Catch2 CONFIG REQUIRED)
 
 add_executable(openchordix_tests
+    test_chart_note_preview_synth.cpp
     test_note_converter.cpp
     test_config_store.cpp
     test_embedded_assets.cpp
@@ -8,6 +9,8 @@ add_executable(openchordix_tests
     test_pitch_detector.cpp
     test_graphics_config.cpp
     test_track_chart_document.cpp
+    test_track_timing.cpp
+    test_tempo_map.cpp
     test_track_editor_math.cpp
     test_track_import.cpp
     test_leaks.cpp

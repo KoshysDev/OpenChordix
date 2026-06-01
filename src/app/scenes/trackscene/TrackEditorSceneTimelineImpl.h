@@ -1,5 +1,7 @@
 #pragma once
 
+#include "track/TrackTiming.h"
+
 void TrackEditorScene::drawTimeline(const ImVec2 &screen, float top)
 {
     ImGui::SetCursorPos(ImVec2(12.0f, top));
@@ -116,11 +118,11 @@ void TrackEditorScene::drawTimeline(const ImVec2 &screen, float top)
     {
         for (const TrackChartMeasure &measure : chart_.measures())
         {
-            const int wholeTicks = chart_.ticksPerBeat() * 4;
             for (int beat = 0; beat < measure.numerator; ++beat)
             {
                 const int tick = measure.startTick +
-                                 (beat * wholeTicks + measure.denominator / 2) / measure.denominator;
+                                 openchordix::track::beatOffsetTicksInMeasure(
+                                     chart_.ticksPerBeat(), beat, measure.denominator);
                 const std::string label = beat == 0
                                               ? "M" + std::to_string(measure.number)
                                               : std::to_string(measure.number) + "." + std::to_string(beat + 1);

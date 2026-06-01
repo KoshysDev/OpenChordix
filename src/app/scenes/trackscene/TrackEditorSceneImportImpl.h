@@ -30,6 +30,43 @@ namespace
             return "Idle";
         }
     }
+
+    int importTempoTick(int tick, int sourceTicksPerBeat, int destinationTicksPerBeat, int offset)
+    {
+        const long long scaled = static_cast<long long>(std::max(0, tick)) *
+                                 static_cast<long long>(std::max(1, destinationTicksPerBeat));
+        const long long source = static_cast<long long>(std::max(1, sourceTicksPerBeat));
+        return static_cast<int>((scaled + source / 2) / source) + std::max(0, offset);
+    }
+
+    std::vector<openchordix::track::TempoEvent> convertedTempoEvents(
+        const openchordix::track::imports::ImportedSong &song,
+        int destinationTicksPerBeat,
+        int offset)
+    {
+        std::vector<openchordix::track::TempoEvent> events;
+        events.reserve(song.tempos.size());
+        for (const auto &tempo : song.tempos)
+        {
+            events.push_back({
+                importTempoTick(tempo.tick, song.ticksPerBeat, destinationTicksPerBeat, offset),
+                tempo.beatsPerMinute,
+                "import",
+            });
+        }
+        return events;
+    }
+
+    openchordix::track::TempoMap importedTempoMap(const openchordix::track::imports::ImportedSong &song)
+    {
+        std::vector<openchordix::track::TempoEvent> events;
+        events.reserve(song.tempos.size());
+        for (const auto &tempo : song.tempos)
+        {
+            events.push_back({tempo.tick, tempo.beatsPerMinute, "import"});
+        }
+        return openchordix::track::TempoMap(song.ticksPerBeat, std::move(events));
+    }
 }
 
 void TrackEditorScene::loadImportSource(const std::filesystem::path &path)
@@ -146,6 +183,8 @@ void TrackEditorScene::applyImportPreview()
     if (applyImportedTempo_ && !importedSong_->tempos.empty())
     {
         draftBpm_ = std::max(1, static_cast<int>(std::lround(importedSong_->tempos.front().beatsPerMinute)));
+        chart_.setTempoEvents(convertedTempoEvents(*importedSong_, chart_.ticksPerBeat(), summary.placementOffsetTicks),
+                              static_cast<double>(draftBpm_));
     }
     if (importedSong_->durationSeconds > 0.0)
     {
@@ -319,10 +358,30 @@ void TrackEditorScene::drawImportPreviewModal()
     const auto timingDebug = openchordix::track::imports::buildTimingDebugSummary(song, 16, 32);
     if (ImGui::CollapsingHeader("Timing debug"))
     {
+        const openchordix::track::TempoMap tempoMap = importedTempoMap(song);
         ImGui::TextDisabled("TPB: %d  |  Tempo: %.1f  |  Measures: %zu",
                             timingDebug.ticksPerBeat,
                             timingDebug.initialTempo.value_or(0.0),
                             timingDebug.measureCount);
+        if (ImGui::BeginTable("import_tempo_events_debug", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+        {
+            ImGui::TableSetupColumn("Tempo tick");
+            ImGui::TableSetupColumn("BPM");
+            ImGui::TableSetupColumn("Seconds");
+            ImGui::TableHeadersRow();
+            const auto &tempoEvents = tempoMap.events();
+            for (std::size_t index = 0; index < std::min<std::size_t>(tempoEvents.size(), 20); ++index)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%d", tempoEvents[index].tick);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%.3f", tempoEvents[index].bpm);
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%.3f", tempoMap.tickToSeconds(tempoEvents[index].tick));
+            }
+            ImGui::EndTable();
+        }
         if (!timingDebug.parts.empty())
         {
             importTimingPartIndex_ = std::clamp(importTimingPartIndex_, 0,
@@ -347,21 +406,25 @@ void TrackEditorScene::drawImportPreviewModal()
                                 partDebug.firstNonEmptyMeasureIndex + 1);
             if (ImGui::BeginChild("timing_debug_details", ImVec2(0.0f, 155.0f), true))
             {
-                ImGui::Text("First note events: measure | within | absolute | duration | string | fret | techniques");
+                ImGui::Text("First note events: measure | within | absolute | seconds | duration | end seconds | string | fret | techniques");
                 for (const auto &note : partDebug.notes)
                 {
-                    ImGui::Text("%d | %d | %d | %d | %d | %d | %s",
+                    ImGui::Text("%d | %d | %d | %.3f | %d | %.3f | %d | %d | %s",
                                 note.measureIndex + 1, note.tickWithinMeasure, note.absoluteTick,
-                                note.durationTicks, note.stringIndex + 1, note.fret, note.techniques.c_str());
+                                tempoMap.tickToSeconds(note.absoluteTick),
+                                note.durationTicks,
+                                tempoMap.tickToSeconds(note.absoluteTick + note.durationTicks),
+                                note.stringIndex + 1, note.fret, note.techniques.c_str());
                 }
                 ImGui::Separator();
-                ImGui::Text("Measure map: # | start | length | signature");
+                ImGui::Text("Measure map: # | start | seconds | length | signature | BPM");
                 for (const auto &measure : timingDebug.measures)
                 {
-                    ImGui::Text("%d%s | %d | %d | %d/%d",
+                    ImGui::Text("%d%s | %d | %.3f | %d | %d/%d | %.3f",
                                 measure.number, measure.pickup ? " (pickup)" : "",
-                                measure.startTick, measure.durationTicks,
-                                measure.numerator, measure.denominator);
+                                measure.startTick, tempoMap.tickToSeconds(measure.startTick),
+                                measure.durationTicks, measure.numerator, measure.denominator,
+                                tempoMap.bpmAtTick(measure.startTick));
                 }
             }
             ImGui::EndChild();
