@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/KoshysDev/OpenChordix/compare/v0.8.1...v0.9.0) (2026-07-07)
+
+
+### Features
+
+* **editor:** add multi note editing workflow ([6bac3a3](https://github.com/KoshysDev/OpenChordix/commit/6bac3a381b614bbc1d33ed45b455d784595d42df))
+* **track:** add tempo-map sync, offset, and note preview ([2056058](https://github.com/KoshysDev/OpenChordix/commit/2056058e16840c3909c7f392200d10fe2204b945))
+
 ## [0.8.1](https://github.com/KoshysDev/OpenChordix/compare/v0.8.0...v0.8.1) (2026-05-26)
 
 
