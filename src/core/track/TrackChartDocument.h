@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,7 @@ struct TrackTabNote
     bool trill = false;
     bool accent = false;
     bool heavyAccent = false;
+    std::uint64_t editorId = 0;
 };
 
 struct TrackChartMeasure

@@ -25,15 +25,16 @@ TrackEditorScene::TrackEditorScene(AnimatedUI &ui, std::string trackId)
     }
 }
 
-void TrackEditorScene::render(float /*dt*/, const FrameInput & /*input*/, GraphicsContext & /*gfx*/, std::atomic<bool> & /*quitFlag*/)
+void TrackEditorScene::render(float dt, const FrameInput & /*input*/, GraphicsContext & /*gfx*/, std::atomic<bool> & /*quitFlag*/)
 {
+    handleEditorShortcuts();
+
     if (!ImGui::GetIO().WantTextInput &&
         !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) &&
         ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
         togglePreviewPlayback();
     }
-
     previewPlayer_->update();
 
     const ImVec2 screen = ImGui::GetIO().DisplaySize;
@@ -48,7 +49,7 @@ void TrackEditorScene::render(float /*dt*/, const FrameInput & /*input*/, Graphi
         drawBackground(screen);
         renderEditorMenuBar();
         renderEditorStatusStrip(screen);
-        drawTimeline(screen, ImGui::GetCursorPosY() + track_editor::kEditorPanelSpacing);
+        drawTimeline(screen, ImGui::GetCursorPosY() + track_editor::kEditorPanelSpacing, dt);
         drawBottomBar(screen);
         drawSongSetupModal();
         drawAddTuningModal();

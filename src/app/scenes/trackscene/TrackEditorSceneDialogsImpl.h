@@ -165,6 +165,7 @@ void TrackEditorScene::drawSongSetupModal()
             const std::string removedPart = track_editor::trimCopy(draftParts_[*removeIndex].name.data());
             draftParts_.erase(draftParts_.begin() + static_cast<std::ptrdiff_t>(*removeIndex));
             ensureSelectedPartIsValid();
+            clearNoteSelection();
             for (TrackTabNote &note : chart_.notes())
             {
                 if (note.part == removedPart)
@@ -180,6 +181,7 @@ void TrackEditorScene::drawSongSetupModal()
             initializeDraftPart(newPart, track_editor::defaultInstrumentName(draftParts_.size()));
             draftParts_.push_back(std::move(newPart));
             selectedPartIndex_ = static_cast<int>(draftParts_.size()) - 1;
+            clearNoteSelection();
         }
 
         ImGui::Spacing();

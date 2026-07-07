@@ -46,18 +46,36 @@ void TrackEditorScene::renderEditMenu()
         return;
     }
 
-    ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
-    ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
-    ImGui::Separator();
-    ImGui::MenuItem("Cut", "Ctrl+X", false, false);
-    ImGui::MenuItem("Copy", "Ctrl+C", false, false);
-    ImGui::MenuItem("Paste", "Ctrl+V", false, false);
-    if (ImGui::MenuItem("Delete Selected Note", "Delete", false, selectedNoteIndex_ >= 0))
+    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndoNoteEdit()))
     {
-        removeSelectedNote();
+        undoNoteEdit();
+    }
+    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedoNoteEdit()))
+    {
+        redoNoteEdit();
     }
     ImGui::Separator();
-    ImGui::MenuItem("Select All", "Ctrl+A", false, false);
+    if (ImGui::MenuItem("Cut", "Ctrl+X", false, hasSelectedNotes()))
+    {
+        cutSelectedNotes();
+    }
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelectedNotes()))
+    {
+        copySelectedNotes();
+    }
+    if (ImGui::MenuItem("Paste", "Ctrl+V", false, !noteClipboard_.notes.empty()))
+    {
+        pasteCopiedNotes();
+    }
+    if (ImGui::MenuItem("Delete Selected", "Delete", false, hasSelectedNotes()))
+    {
+        deleteSelectedNotes();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Select All", "Ctrl+A", false, activePartHasNotes()))
+    {
+        selectAllCurrentPartNotes();
+    }
     ImGui::EndMenu();
 }
 
@@ -109,7 +127,7 @@ void TrackEditorScene::renderTrackMenu()
             if (ImGui::MenuItem(label.c_str(), nullptr, selectedPartIndex_ == index))
             {
                 selectedPartIndex_ = index;
-                selectedNoteIndex_ = -1;
+                clearNoteSelection();
             }
         }
         ImGui::EndMenu();
@@ -121,7 +139,7 @@ void TrackEditorScene::renderTrackMenu()
         initializeDraftPart(part, track_editor::defaultInstrumentName(draftParts_.size()));
         draftParts_.push_back(std::move(part));
         selectedPartIndex_ = static_cast<int>(draftParts_.size()) - 1;
-        selectedNoteIndex_ = -1;
+        clearNoteSelection();
     }
     ImGui::MenuItem("Rename Part...", nullptr, false, false);
 

@@ -28,8 +28,37 @@ void TrackEditorScene::drawBottomBar(const ImVec2 &screen)
     TrackTabNote *selectedNote =
         selectedNoteIndex_ >= 0 && selectedNoteIndex_ < static_cast<int>(chart_.notes().size()) ? &chart_.notes()[selectedNoteIndex_] : nullptr;
 
+    const auto notesEqual = [](const std::vector<TrackTabNote> &left, const std::vector<TrackTabNote> &right)
+    {
+        if (left.size() != right.size())
+        {
+            return false;
+        }
+        for (size_t index = 0; index < left.size(); ++index)
+        {
+            const TrackTabNote &a = left[index];
+            const TrackTabNote &b = right[index];
+            if (a.part != b.part || a.tick != b.tick || a.duration != b.duration ||
+                a.stringIndex != b.stringIndex || a.fret != b.fret ||
+                a.noteType != b.noteType || a.slideType != b.slideType ||
+                a.harmonicType != b.harmonicType || a.pluckStyle != b.pluckStyle ||
+                a.hammerOn != b.hammerOn || a.pullOff != b.pullOff ||
+                a.bend != b.bend || a.vibrato != b.vibrato ||
+                a.palmMute != b.palmMute || a.letRing != b.letRing ||
+                a.staccato != b.staccato || a.tremoloPicking != b.tremoloPicking ||
+                a.trill != b.trill || a.accent != b.accent ||
+                a.heavyAccent != b.heavyAccent || a.editorId != b.editorId)
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+
     if (selectedNote != nullptr)
     {
+        const std::vector<TrackTabNote> inspectorFrameBeforeNotes = chart_.notes();
+        const std::vector<openchordix::track::editor::EditorNoteId> inspectorFrameBeforeSelection = selectedNoteIds_;
         const std::vector<std::string> stringLabels = currentStringLabels();
         const int stringIndex = std::clamp(selectedNote->stringIndex, 0, static_cast<int>(stringLabels.size()) - 1);
         const int snap = snapTickSize();
@@ -111,9 +140,38 @@ void TrackEditorScene::drawBottomBar(const ImVec2 &screen)
             ImGui::SameLine();
             track_editor::drawToggleChip("Heavy", selectedNote->heavyAccent);
         }
+
+        if (!notesEqual(chart_.notes(), inspectorFrameBeforeNotes) && !noteInspectorEditActive_)
+        {
+            noteInspectorBeforeNotes_ = inspectorFrameBeforeNotes;
+            noteInspectorBeforeSelection_ = inspectorFrameBeforeSelection;
+            noteInspectorEditActive_ = true;
+        }
+        if (noteInspectorEditActive_ && !ImGui::IsAnyItemActive())
+        {
+            if (!notesEqual(chart_.notes(), noteInspectorBeforeNotes_))
+            {
+                pushNoteEditCommand("Edit note", noteInspectorBeforeNotes_, noteInspectorBeforeSelection_);
+                statusMessage_ = "Edited note.";
+            }
+            noteInspectorEditActive_ = false;
+            noteInspectorBeforeNotes_.clear();
+            noteInspectorBeforeSelection_.clear();
+        }
     }
     else
     {
+        if (noteInspectorEditActive_ && !ImGui::IsAnyItemActive())
+        {
+            if (!notesEqual(chart_.notes(), noteInspectorBeforeNotes_))
+            {
+                pushNoteEditCommand("Edit note", noteInspectorBeforeNotes_, noteInspectorBeforeSelection_);
+                statusMessage_ = "Edited note.";
+            }
+            noteInspectorEditActive_ = false;
+            noteInspectorBeforeNotes_.clear();
+            noteInspectorBeforeSelection_.clear();
+        }
         const std::vector<std::string> stringLabels = currentStringLabels();
         ImGui::SetCursorPos(ImVec2(14.0f, 16.0f));
         ImGui::TextColored(track_editor::kAccent, "%s", currentPartName().c_str());
