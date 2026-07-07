@@ -12,6 +12,7 @@
 #include "Scene.h"
 #include "track/TrackCatalog.h"
 #include "track/TrackChartDocument.h"
+#include "track/TrackEditorMath.h"
 #include "track/TrackPreviewPlayer.h"
 #include "track/TuningLibrary.h"
 #include "track/import/ImporterRegistry.h"
@@ -52,6 +53,21 @@ private:
         std::vector<std::string> tuning;
     };
 
+    struct NoteClipboard
+    {
+        std::string sourcePart;
+        std::vector<TrackTabNote> notes;
+    };
+
+    struct NoteEditCommand
+    {
+        std::string label;
+        std::vector<TrackTabNote> beforeNotes;
+        std::vector<TrackTabNote> afterNotes;
+        std::vector<openchordix::track::editor::EditorNoteId> beforeSelection;
+        std::vector<openchordix::track::editor::EditorNoteId> afterSelection;
+    };
+
     enum class EditorTool
     {
         Select,
@@ -75,7 +91,7 @@ private:
     void drawSongSetupModal();
     void drawAddTuningModal();
     void drawImportPreviewModal();
-    void drawTimeline(const ImVec2 &screen, float top);
+    void drawTimeline(const ImVec2 &screen, float top, float dt);
     void drawBottomBar(const ImVec2 &screen);
     void resetDraft();
     void loadTrack(std::string_view trackId);
@@ -112,6 +128,7 @@ private:
     double displayedCursorSeconds() const;
     int timelineTotalBeats() const;
     int timelineTotalTicks() const;
+    openchordix::track::TempoMap currentTempoMap() const;
     double timelineTickFromSeconds(double seconds) const;
     double timelineSecondsFromTick(double tick) const;
     void pausePreviewPlayback();
@@ -120,6 +137,31 @@ private:
     void requestTimelineSync();
     void syncTimelineScrollToSeconds(double seconds, float viewportWidth = -1.0f);
     bool startPreviewFromCursor();
+    void refreshTimingPreview();
+    void ensureNoteEditorIds();
+    int noteIndexByEditorId(openchordix::track::editor::EditorNoteId id) const;
+    bool isNoteSelected(openchordix::track::editor::EditorNoteId id) const;
+    void clearNoteSelection();
+    void setPrimarySelectedNote(openchordix::track::editor::EditorNoteId id);
+    void syncSelectedNoteIndex();
+    int commitDraggedSelectionMove(int deltaTicks);
+    bool hasSelectedNotes() const;
+    bool activePartHasNotes() const;
+    void copySelectedNotes();
+    void cutSelectedNotes();
+    void pasteCopiedNotes();
+    void deleteSelectedNotes();
+    void selectAllCurrentPartNotes();
+    bool canUndoNoteEdit() const;
+    bool canRedoNoteEdit() const;
+    void undoNoteEdit();
+    void redoNoteEdit();
+    void pushNoteEditCommand(std::string label,
+                             std::vector<TrackTabNote> beforeNotes,
+                             std::vector<openchordix::track::editor::EditorNoteId> beforeSelection);
+    void restoreNoteEditState(const std::vector<TrackTabNote> &notes,
+                              const std::vector<openchordix::track::editor::EditorNoteId> &selection);
+    void handleEditorShortcuts();
 
     AnimatedUI &ui_;
     std::unique_ptr<TrackCatalog> catalog_;
@@ -168,10 +210,38 @@ private:
     bool openAddTuning_ = false;
     bool openImportPreview_ = false;
     bool applyImportedTempo_ = true;
+    bool showTimingDiagnostics_ = false;
+    bool metronomeEnabled_ = false;
+    bool noteClicksEnabled_ = false;
+    bool songMuted_ = false;
+    bool metronomeMuted_ = false;
+    bool notePreviewMuted_ = false;
+    float songVolume_ = 1.0f;
+    float metronomeVolume_ = 0.65f;
+    float notePreviewVolume_ = 0.75f;
+    openchordix::track::editor::EditorNoteId nextEditorNoteId_ = 1;
+    std::vector<openchordix::track::editor::EditorNoteId> selectedNoteIds_;
+    bool selectionDragActive_ = false;
+    bool selectionDragExceededThreshold_ = false;
+    ImVec2 selectionStartMouse_{};
+    ImVec2 selectionCurrentMouse_{};
+    int selectionStartTick_ = 0;
+    int selectionCurrentTick_ = 0;
+    int selectionStartLane_ = 0;
+    int selectionCurrentLane_ = 0;
+    openchordix::track::editor::SelectionMode selectionMode_ =
+        openchordix::track::editor::SelectionMode::Replace;
     bool draggingNote_ = false;
-    int draggingNoteIndex_ = -1;
-    int dragGrabTickOffset_ = 0;
-    int dragGrabStringOffset_ = 0;
+    openchordix::track::editor::EditorNoteId draggingNoteId_ = 0;
+    int dragStartMouseTick_ = 0;
+    int currentDragDeltaTicks_ = 0;
+    std::vector<openchordix::track::editor::EditorDraggedNote> draggedSelectionOriginalNotes_;
+    NoteClipboard noteClipboard_;
+    std::vector<NoteEditCommand> undoStack_;
+    std::vector<NoteEditCommand> redoStack_;
+    bool noteInspectorEditActive_ = false;
+    std::vector<TrackTabNote> noteInspectorBeforeNotes_;
+    std::vector<openchordix::track::editor::EditorNoteId> noteInspectorBeforeSelection_;
     bool scrubbingTransport_ = false;
     bool scrubResumePlayback_ = false;
     bool timelineSyncPending_ = true;

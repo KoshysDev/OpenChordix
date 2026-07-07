@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "track/TrackChartDocument.h"
+#include "track/TempoMap.h"
 #include "track/import/GuitarProImporter.h"
 #include "track/import/ImportTimingDebug.h"
 #include "track/import/ImporterRegistry.h"
@@ -636,6 +637,104 @@ TEST_CASE("GPIF measure lengths follow each time signature at 960 ticks per beat
     CHECK(imported.value().measures[2].durationTicks == 2880);
     CHECK(imported.value().measures[1].startTick == 3840);
     CHECK(imported.value().measures[2].startTick == 8640);
+}
+
+TEST_CASE("GPIF irregular 15/8 15/8 12/8 measure map controls note placement", "[track][import][timing]")
+{
+    using namespace openchordix::track::imports;
+
+    const std::string xml = timedGpif(
+        "",
+        "<MasterBar><Time>15/8</Time><Bars>0</Bars></MasterBar>"
+        "<MasterBar><Time>15/8</Time><Bars>1</Bars></MasterBar>"
+        "<MasterBar><Time>12/8</Time><Bars>2</Bars></MasterBar>"
+        "<MasterBar><Time>4/4</Time><Bars>3</Bars></MasterBar>",
+        "<Bar id=\"0\"><Voices>0 1</Voices></Bar>"
+        "<Bar id=\"1\"><Voices>-1</Voices></Bar>"
+        "<Bar id=\"2\"><Voices>2</Voices></Bar>"
+        "<Bar id=\"3\"><Voices>3</Voices></Bar>",
+        "<Voice id=\"0\"><Beats>0</Beats></Voice>"
+        "<Voice id=\"1\"><Beats>1</Beats></Voice>"
+        "<Voice id=\"2\"><Beats>2</Beats></Voice>"
+        "<Voice id=\"3\"><Beats>3</Beats></Voice>",
+        "<Beat id=\"0\"><Rhythm ref=\"q\"/><Notes>0 1</Notes></Beat>"
+        "<Beat id=\"1\"><Rhythm ref=\"q\"/><Notes>2</Notes></Beat>"
+        "<Beat id=\"2\"><Rhythm ref=\"q\"/><Notes>3</Notes></Beat>"
+        "<Beat id=\"3\"><Rhythm ref=\"q\"/><Notes>4</Notes></Beat>",
+        tabNote("0", 5, 1) + tabNote("1", 4, 2) + tabNote("2", 5, 3) +
+            tabNote("3", 5, 5) + tabNote("4", 5, 7),
+        "<Rhythm id=\"q\"><NoteValue>Quarter</NoteValue></Rhythm>");
+
+    const auto imported = GuitarProImporter().importBytes(storedZip({{"Content/score.gpif", xml}}), "irregular.gp");
+    REQUIRE(imported);
+    const ImportedSong &song = imported.value();
+    REQUIRE(song.measures.size() == 4);
+    CHECK(song.measures[0].startTick == 0);
+    CHECK(song.measures[0].durationTicks == 7200);
+    CHECK(song.measures[0].numerator == 15);
+    CHECK(song.measures[0].denominator == 8);
+    CHECK(song.measures[1].startTick == 7200);
+    CHECK(song.measures[1].durationTicks == 7200);
+    CHECK(song.measures[2].startTick == 14400);
+    CHECK(song.measures[2].durationTicks == 5760);
+    CHECK(song.measures[2].numerator == 12);
+    CHECK(song.measures[2].denominator == 8);
+    CHECK(song.measures[3].startTick == 20160);
+    CHECK(song.durationTicks == 24000);
+
+    const auto &notes = song.parts.front().notes;
+    REQUIRE(notes.size() == 5);
+    CHECK(notes[0].tick == 0);
+    CHECK(notes[1].tick == 0);
+    CHECK(notes[2].tick == 0);
+    CHECK(notes[3].tick == 14400);
+    CHECK(notes[4].tick == 20160);
+
+    const auto debug = buildTimingDebugSummary(song, 16, 8);
+    REQUIRE(debug.measures.size() == 4);
+    CHECK(debug.measures[1].startTick == 7200);
+    CHECK(debug.measures[2].startTick == 14400);
+    REQUIRE(debug.parts.size() == 1);
+    CHECK(debug.parts.front().notes[3].measureIndex == 2);
+    CHECK(debug.parts.front().notes[3].tickWithinMeasure == 0);
+}
+
+TEST_CASE("GPIF importer preserves multiple tempo events including in-measure positions", "[track][import][timing]")
+{
+    using namespace openchordix::track::imports;
+
+    const std::string tempos =
+        "<Automations>"
+        "<Automation><Type>Tempo</Type><Bar>0</Bar><Position>0</Position><Value>120 2</Value></Automation>"
+        "<Automation><Type>Tempo</Type><Bar>1</Bar><Position>0</Position><Value>60 2</Value></Automation>"
+        "<Automation><Type>Tempo</Type><Bar>1</Bar><Position>960</Position><Value>180 2</Value></Automation>"
+        "</Automations>";
+    const std::string xml = timedGpif(
+        tempos,
+        "<MasterBar><Time>4/4</Time><Bars>-1</Bars></MasterBar>"
+        "<MasterBar><Time>4/4</Time><Bars>-1</Bars></MasterBar>",
+        "", "", "", "", "<Rhythm id=\"q\"><NoteValue>Quarter</NoteValue></Rhythm>");
+
+    const auto imported = GuitarProImporter().importBytes(storedZip({{"Content/score.gpif", xml}}), "tempo.gp");
+    REQUIRE(imported);
+    const ImportedSong &song = imported.value();
+    REQUIRE(song.tempos.size() == 3);
+    CHECK(song.tempos[0].tick == 0);
+    CHECK(song.tempos[0].beatsPerMinute == Catch::Approx(120.0));
+    CHECK(song.tempos[1].tick == 3840);
+    CHECK(song.tempos[1].beatsPerMinute == Catch::Approx(60.0));
+    CHECK(song.tempos[2].tick == 4800);
+    CHECK(song.tempos[2].beatsPerMinute == Catch::Approx(180.0));
+
+    std::vector<openchordix::track::TempoEvent> events;
+    for (const TempoEvent &tempo : song.tempos)
+    {
+        events.push_back({tempo.tick, tempo.beatsPerMinute});
+    }
+    const openchordix::track::TempoMap map(song.ticksPerBeat, std::move(events));
+    CHECK(map.tickToSeconds(3840) == Catch::Approx(2.0));
+    CHECK(map.tickToSeconds(4800) == Catch::Approx(3.0));
+    CHECK(song.durationSeconds == Catch::Approx(4.0));
 }
 
 TEST_CASE("GPIF rhythmic beats use exact durations and independent voice cursors", "[track][import][timing]")

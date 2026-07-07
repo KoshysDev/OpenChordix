@@ -23,8 +23,15 @@ void TrackEditorScene::drawSongSetupModal()
         ImGui::SetNextItemWidth(320.0f);
         ImGui::InputTextWithHint("Mapper", "Mapper", draftMapper_.data(), draftMapper_.size());
         ImGui::SetNextItemWidth(120.0f);
+        const int previousBpm = draftBpm_;
         ImGui::InputInt("BPM", &draftBpm_);
         draftBpm_ = std::max(1, draftBpm_);
+        if (draftBpm_ != previousBpm)
+        {
+            chart_.setTempoEvents({openchordix::track::TempoEvent{0, static_cast<double>(draftBpm_), "song setup"}},
+                                  static_cast<double>(draftBpm_));
+            requestTimelineSync();
+        }
 
         ImGui::Spacing();
         ImGui::TextColored(track_editor::kAccent, "Audio");
@@ -39,6 +46,52 @@ void TrackEditorScene::drawSongSetupModal()
         }
         ImGui::TextDisabled("Selected audio is copied into the song folder on save.");
         ImGui::TextDisabled("Detected length: %s", track_editor::formatClock(songDurationSeconds()).c_str());
+        int offsetMs = chart_.chartAudioOffsetMs();
+        ImGui::SetNextItemWidth(120.0f);
+        if (ImGui::InputInt("Offset ms", &offsetMs, 0, 0))
+        {
+            chart_.setChartAudioOffsetMs(offsetMs);
+            requestTimelineSync();
+            refreshTimingPreview();
+        }
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Positive delays chart notes. Negative advances chart notes. Offset fixes constant start mismatch, not tempo drift.");
+        }
+        ImGui::SameLine();
+        const auto adjustOffset = [&](int delta)
+        {
+            chart_.setChartAudioOffsetMs(chart_.chartAudioOffsetMs() + delta);
+            requestTimelineSync();
+            refreshTimingPreview();
+        };
+        if (ImGui::Button("-100 ms"))
+        {
+            adjustOffset(-100);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("-10 ms"))
+        {
+            adjustOffset(-10);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+10 ms"))
+        {
+            adjustOffset(10);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+100 ms"))
+        {
+            adjustOffset(100);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset Offset"))
+        {
+            chart_.setChartAudioOffsetMs(0);
+            requestTimelineSync();
+            refreshTimingPreview();
+        }
+        ImGui::TextDisabled("If notes appear too early, increase offset. If notes appear too late, decrease it.");
 
         ImGui::Spacing();
         ImGui::TextColored(track_editor::kAccent, "Instruments");
@@ -112,6 +165,7 @@ void TrackEditorScene::drawSongSetupModal()
             const std::string removedPart = track_editor::trimCopy(draftParts_[*removeIndex].name.data());
             draftParts_.erase(draftParts_.begin() + static_cast<std::ptrdiff_t>(*removeIndex));
             ensureSelectedPartIsValid();
+            clearNoteSelection();
             for (TrackTabNote &note : chart_.notes())
             {
                 if (note.part == removedPart)
@@ -127,6 +181,7 @@ void TrackEditorScene::drawSongSetupModal()
             initializeDraftPart(newPart, track_editor::defaultInstrumentName(draftParts_.size()));
             draftParts_.push_back(std::move(newPart));
             selectedPartIndex_ = static_cast<int>(draftParts_.size()) - 1;
+            clearNoteSelection();
         }
 
         ImGui::Spacing();

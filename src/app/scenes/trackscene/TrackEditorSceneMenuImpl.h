@@ -46,18 +46,36 @@ void TrackEditorScene::renderEditMenu()
         return;
     }
 
-    ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
-    ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
-    ImGui::Separator();
-    ImGui::MenuItem("Cut", "Ctrl+X", false, false);
-    ImGui::MenuItem("Copy", "Ctrl+C", false, false);
-    ImGui::MenuItem("Paste", "Ctrl+V", false, false);
-    if (ImGui::MenuItem("Delete Selected Note", "Delete", false, selectedNoteIndex_ >= 0))
+    if (ImGui::MenuItem("Undo", "Ctrl+Z", false, canUndoNoteEdit()))
     {
-        removeSelectedNote();
+        undoNoteEdit();
+    }
+    if (ImGui::MenuItem("Redo", "Ctrl+Y", false, canRedoNoteEdit()))
+    {
+        redoNoteEdit();
     }
     ImGui::Separator();
-    ImGui::MenuItem("Select All", "Ctrl+A", false, false);
+    if (ImGui::MenuItem("Cut", "Ctrl+X", false, hasSelectedNotes()))
+    {
+        cutSelectedNotes();
+    }
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, hasSelectedNotes()))
+    {
+        copySelectedNotes();
+    }
+    if (ImGui::MenuItem("Paste", "Ctrl+V", false, !noteClipboard_.notes.empty()))
+    {
+        pasteCopiedNotes();
+    }
+    if (ImGui::MenuItem("Delete Selected", "Delete", false, hasSelectedNotes()))
+    {
+        deleteSelectedNotes();
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Select All", "Ctrl+A", false, activePartHasNotes()))
+    {
+        selectAllCurrentPartNotes();
+    }
     ImGui::EndMenu();
 }
 
@@ -77,6 +95,16 @@ void TrackEditorScene::renderSongMenu()
     if (ImGui::MenuItem("Apply Imported Tempo", nullptr, false, hasImportedTempo))
     {
         draftBpm_ = std::max(1, static_cast<int>(std::lround(importedSong_->tempos.front().beatsPerMinute)));
+        std::vector<openchordix::track::TempoEvent> events;
+        events.reserve(importedSong_->tempos.size());
+        for (const auto &tempo : importedSong_->tempos)
+        {
+            const long long scaled = static_cast<long long>(std::max(0, tempo.tick)) *
+                                     static_cast<long long>(std::max(1, chart_.ticksPerBeat()));
+            const long long source = static_cast<long long>(std::max(1, importedSong_->ticksPerBeat));
+            events.push_back({static_cast<int>((scaled + source / 2) / source), tempo.beatsPerMinute, "import"});
+        }
+        chart_.setTempoEvents(std::move(events), static_cast<double>(draftBpm_));
         applyImportedTempo_ = true;
         statusMessage_ = "Imported tempo applied.";
     }
@@ -99,7 +127,7 @@ void TrackEditorScene::renderTrackMenu()
             if (ImGui::MenuItem(label.c_str(), nullptr, selectedPartIndex_ == index))
             {
                 selectedPartIndex_ = index;
-                selectedNoteIndex_ = -1;
+                clearNoteSelection();
             }
         }
         ImGui::EndMenu();
@@ -111,7 +139,7 @@ void TrackEditorScene::renderTrackMenu()
         initializeDraftPart(part, track_editor::defaultInstrumentName(draftParts_.size()));
         draftParts_.push_back(std::move(part));
         selectedPartIndex_ = static_cast<int>(draftParts_.size()) - 1;
-        selectedNoteIndex_ = -1;
+        clearNoteSelection();
     }
     ImGui::MenuItem("Rename Part...", nullptr, false, false);
 
@@ -226,6 +254,8 @@ void TrackEditorScene::renderViewMenu()
     {
         zoom_ = 1.0f;
     }
+    ImGui::Separator();
+    ImGui::MenuItem("Timing Diagnostics", nullptr, &showTimingDiagnostics_);
     ImGui::Separator();
     if (ImGui::BeginMenu("Snap"))
     {

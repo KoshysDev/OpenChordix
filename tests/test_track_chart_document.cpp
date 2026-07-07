@@ -1,3 +1,4 @@
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <filesystem>
@@ -6,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include "track/TrackChartDocument.h"
+#include "track/TrackEditorMath.h"
 
 TEST_CASE("TrackChartDocument loads and saves note timelines", "[track]")
 {
@@ -51,6 +53,10 @@ TEST_CASE("TrackChartDocument loads and saves note timelines", "[track]")
     REQUIRE(document.notes().size() == 2);
     CHECK(document.ticksPerBeat() == 48);
     CHECK(document.beatsPerMeasure() == 4);
+    CHECK(document.chartAudioOffsetMs() == 0);
+    REQUIRE(document.tempoEvents().size() == 1);
+    CHECK(document.tempoEvents().front().tick == 0);
+    CHECK(document.tempoEvents().front().bpm == 120.0);
     CHECK(document.notes()[0].part == "Bass");
     CHECK(document.notes()[1].fret == 7);
     CHECK(document.notes()[1].noteType == "ghost");
@@ -74,6 +80,11 @@ TEST_CASE("TrackChartDocument loads and saves note timelines", "[track]")
         TrackChartMeasure{.number = 1, .numerator = 1, .denominator = 4, .startTick = 0, .durationTicks = 48, .pickup = true},
         TrackChartMeasure{.number = 2, .numerator = 6, .denominator = 8, .startTick = 48, .durationTicks = 144},
     };
+    document.setTempoEvents({
+        openchordix::track::TempoEvent{0, 140.0, "test"},
+        openchordix::track::TempoEvent{96, 70.0, "test"},
+    });
+    document.setChartAudioOffsetMs(125);
 
     TrackInfo track;
     track.id = "test-song";
@@ -107,6 +118,11 @@ TEST_CASE("TrackChartDocument loads and saves note timelines", "[track]")
     REQUIRE(saved["measures"].size() == 2);
     CHECK(saved["measures"][0]["pickup"] == true);
     CHECK(saved["measures"][1]["numerator"] == 6);
+    REQUIRE(saved["tempo_events"].is_array());
+    REQUIRE(saved["tempo_events"].size() == 2);
+    CHECK(saved["tempo_events"][1]["tick"] == 96);
+    CHECK(saved["tempo_events"][1]["bpm"] == 70.0);
+    CHECK(saved["chart_audio_offset_ms"] == 125);
 
     TrackChartDocument reloaded;
     REQUIRE(reloaded.load(path));
@@ -120,7 +136,37 @@ TEST_CASE("TrackChartDocument loads and saves note timelines", "[track]")
     REQUIRE(reloaded.measures().size() == 2);
     CHECK(reloaded.measures().front().pickup);
     CHECK(reloaded.measures()[1].durationTicks == 144);
+    REQUIRE(reloaded.tempoEvents().size() == 2);
+    CHECK(reloaded.tempoMap().tickToSeconds(48) == Catch::Approx(60.0 / 140.0));
+    CHECK(reloaded.tempoEvents()[1].tick == 96);
+    CHECK(reloaded.chartAudioOffsetMs() == 125);
     CHECK(reloaded.timelineEndTick() == 192);
 
     std::filesystem::remove(path, ec);
+}
+
+TEST_CASE("Track chart audio offset changes conversion without mutating notes", "[track][timing]")
+{
+    using namespace openchordix::track;
+    using namespace openchordix::track::editor;
+
+    TrackChartDocument document;
+    document.setTicksPerBeat(960);
+    document.setTempoEvents({TempoEvent{0, 120.0}});
+    document.notes().push_back(TrackTabNote{.part = "Lead", .tick = 960, .duration = 480, .stringIndex = 0, .fret = 3});
+
+    const TempoMap map = document.tempoMap();
+    CHECK(map.secondsToTick(chartSecondsFromAudioSeconds(0.5, document.chartAudioOffsetMs())) == 960);
+
+    document.setChartAudioOffsetMs(100);
+    CHECK(map.secondsToTick(chartSecondsFromAudioSeconds(0.5, document.chartAudioOffsetMs())) == 768);
+    CHECK(document.notes().front().tick == 960);
+
+    document.setChartAudioOffsetMs(-100);
+    CHECK(map.secondsToTick(chartSecondsFromAudioSeconds(0.5, document.chartAudioOffsetMs())) == 1152);
+    CHECK(document.notes().front().tick == 960);
+
+    document.setPreviewStartSeconds(10.0);
+    CHECK(document.chartAudioOffsetMs() == -100);
+    CHECK(document.notes().front().tick == 960);
 }

@@ -120,6 +120,11 @@ struct Tempo {
 	void addToXML(std::ostringstream& outputStream, std::int32_t indentLevel) const;
 };
 
+struct TempoChange {
+	std::int32_t tick;
+	std::int32_t value;
+};
+
 // Define measure header struct
 struct MeasureHeader {
 	std::int32_t number;
@@ -345,6 +350,7 @@ struct TabFile {
 	std::int32_t& trackCount;
 	std::vector<MeasureHeader>& measureHeaders;
 	std::vector<Track>& tracks;
+	std::vector<TempoChange>& tempoChanges;
 
 	// Constructor to set references
 	TabFile(std::int32_t& major, std::int32_t& minor, std::string& title,
@@ -353,13 +359,14 @@ struct TabFile {
 		std::string& tab, std::string& instructions, std::vector<std::string>& comments,
 		Lyric& lyric, std::int32_t& tempoValue, std::int8_t& globalKeySignature,
 		std::vector<Channel>& channels, std::int32_t& measures, std::int32_t& trackCount,
-		std::vector<MeasureHeader>& measureHeaders, std::vector<Track>& tracks)
+		std::vector<MeasureHeader>& measureHeaders, std::vector<Track>& tracks,
+		std::vector<TempoChange>& tempoChanges)
 		: major(major), minor(minor), title(title), subtitle(subtitle),
 		  artist(artist), album(album), lyricsAuthor(lyricsAuthor), musicAuthor(musicAuthor),
 		  copyright(copyright), tab(tab), instructions(instructions), comments(comments),
 		  lyric(lyric), tempoValue(tempoValue), globalKeySignature(globalKeySignature),
 		  channels(channels), measures(measures), trackCount(trackCount),
-		  measureHeaders(measureHeaders), tracks(tracks) {}
+		  measureHeaders(measureHeaders), tracks(tracks), tempoChanges(tempoChanges) {}
 };
 
 class Parser {
@@ -395,6 +402,7 @@ private:
 	std::int32_t trackCount;
 	std::vector<MeasureHeader> measureHeaders;
 	std::vector<Track> tracks;
+	std::vector<TempoChange> tempoChanges;
 
 	// Private member functions for reading low-level file data
 	void parse();
@@ -421,7 +429,7 @@ private:
 	void readMeasure(Measure& measure, Track& track, Tempo& tempo, std::int8_t keySignature);
 	std::int32_t getLength(MeasureHeader& header);
 	Beat& getBeat(Measure& measure, std::int32_t start);
-	void readMixChange(Tempo& tempo);
+	void readMixChange(Tempo& tempo, std::int32_t tick);
 	void readBeatEffects(Beat& beat, NoteEffect& noteEffect);
 	void readTremoloBar(NoteEffect& effect);
 	void readText(Beat& beat);

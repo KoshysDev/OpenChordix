@@ -1,9 +1,11 @@
 #pragma once
 
 #include <filesystem>
+#include <cstdint>
 #include <string>
 #include <vector>
 
+#include "track/TempoMap.h"
 #include "track/TrackTypes.h"
 
 struct TrackTabNote
@@ -28,6 +30,7 @@ struct TrackTabNote
     bool trill = false;
     bool accent = false;
     bool heavyAccent = false;
+    std::uint64_t editorId = 0;
 };
 
 struct TrackChartMeasure
@@ -55,6 +58,10 @@ public:
     const std::vector<TrackTabNote> &notes() const { return notes_; }
     std::vector<TrackChartMeasure> &measures() { return measures_; }
     const std::vector<TrackChartMeasure> &measures() const { return measures_; }
+    std::vector<openchordix::track::TempoEvent> &tempoEvents() { return tempoEvents_; }
+    const std::vector<openchordix::track::TempoEvent> &tempoEvents() const { return tempoEvents_; }
+    void setTempoEvents(std::vector<openchordix::track::TempoEvent> events, double fallbackBpm = openchordix::track::TempoMap::kDefaultBpm);
+    openchordix::track::TempoMap tempoMap(double fallbackBpm = openchordix::track::TempoMap::kDefaultBpm) const;
     int timelineEndTick() const;
 
     int ticksPerBeat() const { return ticksPerBeat_; }
@@ -65,14 +72,18 @@ public:
 
     double previewStartSeconds() const { return previewStartSeconds_; }
     void setPreviewStartSeconds(double value);
+    int chartAudioOffsetMs() const { return chartAudioOffsetMs_; }
+    void setChartAudioOffsetMs(int value);
 
     const std::string &lastError() const { return lastError_; }
 
 private:
     std::vector<TrackTabNote> notes_;
     std::vector<TrackChartMeasure> measures_;
+    std::vector<openchordix::track::TempoEvent> tempoEvents_;
     int ticksPerBeat_ = kDefaultTicksPerBeat;
     int beatsPerMeasure_ = kDefaultBeatsPerMeasure;
     double previewStartSeconds_ = 0.0;
+    int chartAudioOffsetMs_ = 0;
     mutable std::string lastError_;
 };

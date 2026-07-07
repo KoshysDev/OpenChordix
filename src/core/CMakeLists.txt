@@ -15,6 +15,8 @@ add_library(openchordix_core STATIC
     track/TrackCatalogFile.cpp
     track/TrackCatalogFile.h
     track/TrackCatalog.h
+    track/ChartNotePreviewSynth.cpp
+    track/ChartNotePreviewSynth.h
     track/TrackChartDocument.cpp
     track/TrackChartDocument.h
     track/TrackAudioDuration.cpp
@@ -23,6 +25,9 @@ add_library(openchordix_core STATIC
     track/TrackFilePaths.h
     track/TrackPreviewPlayer.cpp
     track/TrackPreviewPlayer.h
+    track/TempoMap.cpp
+    track/TempoMap.h
+    track/TrackTiming.h
     track/TuningLibrary.cpp
     track/TuningLibrary.h
     track/TrackTypes.h

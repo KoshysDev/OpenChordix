@@ -28,8 +28,37 @@ void TrackEditorScene::drawBottomBar(const ImVec2 &screen)
     TrackTabNote *selectedNote =
         selectedNoteIndex_ >= 0 && selectedNoteIndex_ < static_cast<int>(chart_.notes().size()) ? &chart_.notes()[selectedNoteIndex_] : nullptr;
 
+    const auto notesEqual = [](const std::vector<TrackTabNote> &left, const std::vector<TrackTabNote> &right)
+    {
+        if (left.size() != right.size())
+        {
+            return false;
+        }
+        for (size_t index = 0; index < left.size(); ++index)
+        {
+            const TrackTabNote &a = left[index];
+            const TrackTabNote &b = right[index];
+            if (a.part != b.part || a.tick != b.tick || a.duration != b.duration ||
+                a.stringIndex != b.stringIndex || a.fret != b.fret ||
+                a.noteType != b.noteType || a.slideType != b.slideType ||
+                a.harmonicType != b.harmonicType || a.pluckStyle != b.pluckStyle ||
+                a.hammerOn != b.hammerOn || a.pullOff != b.pullOff ||
+                a.bend != b.bend || a.vibrato != b.vibrato ||
+                a.palmMute != b.palmMute || a.letRing != b.letRing ||
+                a.staccato != b.staccato || a.tremoloPicking != b.tremoloPicking ||
+                a.trill != b.trill || a.accent != b.accent ||
+                a.heavyAccent != b.heavyAccent || a.editorId != b.editorId)
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+
     if (selectedNote != nullptr)
     {
+        const std::vector<TrackTabNote> inspectorFrameBeforeNotes = chart_.notes();
+        const std::vector<openchordix::track::editor::EditorNoteId> inspectorFrameBeforeSelection = selectedNoteIds_;
         const std::vector<std::string> stringLabels = currentStringLabels();
         const int stringIndex = std::clamp(selectedNote->stringIndex, 0, static_cast<int>(stringLabels.size()) - 1);
         const int snap = snapTickSize();
@@ -111,9 +140,38 @@ void TrackEditorScene::drawBottomBar(const ImVec2 &screen)
             ImGui::SameLine();
             track_editor::drawToggleChip("Heavy", selectedNote->heavyAccent);
         }
+
+        if (!notesEqual(chart_.notes(), inspectorFrameBeforeNotes) && !noteInspectorEditActive_)
+        {
+            noteInspectorBeforeNotes_ = inspectorFrameBeforeNotes;
+            noteInspectorBeforeSelection_ = inspectorFrameBeforeSelection;
+            noteInspectorEditActive_ = true;
+        }
+        if (noteInspectorEditActive_ && !ImGui::IsAnyItemActive())
+        {
+            if (!notesEqual(chart_.notes(), noteInspectorBeforeNotes_))
+            {
+                pushNoteEditCommand("Edit note", noteInspectorBeforeNotes_, noteInspectorBeforeSelection_);
+                statusMessage_ = "Edited note.";
+            }
+            noteInspectorEditActive_ = false;
+            noteInspectorBeforeNotes_.clear();
+            noteInspectorBeforeSelection_.clear();
+        }
     }
     else
     {
+        if (noteInspectorEditActive_ && !ImGui::IsAnyItemActive())
+        {
+            if (!notesEqual(chart_.notes(), noteInspectorBeforeNotes_))
+            {
+                pushNoteEditCommand("Edit note", noteInspectorBeforeNotes_, noteInspectorBeforeSelection_);
+                statusMessage_ = "Edited note.";
+            }
+            noteInspectorEditActive_ = false;
+            noteInspectorBeforeNotes_.clear();
+            noteInspectorBeforeSelection_.clear();
+        }
         const std::vector<std::string> stringLabels = currentStringLabels();
         ImGui::SetCursorPos(ImVec2(14.0f, 16.0f));
         ImGui::TextColored(track_editor::kAccent, "%s", currentPartName().c_str());
@@ -152,6 +210,101 @@ void TrackEditorScene::drawBottomBar(const ImVec2 &screen)
     dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 1.7f, stampPos, ImGui::GetColorU32(track_editor::kAccent), stampText.c_str());
     const ImVec2 stampSize = ImGui::CalcTextSize(stampText.c_str());
     ImGui::Dummy(ImVec2(stampSize.x * 1.7f, ImGui::GetFontSize() * 1.8f));
+
+    ImGui::SameLine();
+    bool timingSettingsChanged = false;
+    ImGui::SetNextItemWidth(92.0f);
+    timingSettingsChanged |= ImGui::SliderFloat("Song", &songVolume_, 0.0f, 1.0f, "%.2f");
+    ImGui::SameLine();
+    timingSettingsChanged |= ImGui::Checkbox("Mute##song", &songMuted_);
+    ImGui::SameLine();
+    timingSettingsChanged |= ImGui::Checkbox("Metro", &metronomeEnabled_);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(82.0f);
+    timingSettingsChanged |= ImGui::SliderFloat("##metro_vol", &metronomeVolume_, 0.0f, 1.0f, "%.2f");
+    ImGui::SameLine();
+    timingSettingsChanged |= ImGui::Checkbox("Mute##metro", &metronomeMuted_);
+    ImGui::SameLine();
+    timingSettingsChanged |= ImGui::Checkbox("Preview chart notes", &noteClicksEnabled_);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(82.0f);
+    timingSettingsChanged |= ImGui::SliderFloat("##note_vol", &notePreviewVolume_, 0.0f, 1.0f, "%.2f");
+    ImGui::SameLine();
+    timingSettingsChanged |= ImGui::Checkbox("Mute##notes", &notePreviewMuted_);
+    if (timingSettingsChanged)
+    {
+        refreshTimingPreview();
+    }
+
+    if (showTimingDiagnostics_)
+    {
+        if (ImGui::Begin("Timing Diagnostics", &showTimingDiagnostics_, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            const openchordix::track::TempoMap map = currentTempoMap();
+            const double chartSeconds =
+                openchordix::track::editor::chartSecondsFromAudioSeconds(cursorSeconds, chart_.chartAudioOffsetMs());
+            const int cursorTick = static_cast<int>(std::lround(timelineTickFromSeconds(cursorSeconds)));
+            const auto nextTempo = map.nextEventAfterTick(cursorTick);
+            const auto firstNote = std::min_element(chart_.notes().begin(), chart_.notes().end(),
+                                                    [](const TrackTabNote &left, const TrackTabNote &right)
+                                                    { return left.tick < right.tick; });
+            ImGui::Text("Ticks per beat: %d", map.ticksPerBeat());
+            ImGui::Text("Audio time: %.3f", cursorSeconds);
+            ImGui::Text("Chart offset: %d ms", chart_.chartAudioOffsetMs());
+            ImGui::Text("Adjusted chart time: %.3f", chartSeconds);
+            ImGui::Text("Chart tick: %d", cursorTick);
+            ImGui::Text("Current BPM: %.3f", map.bpmAtTick(cursorTick));
+            ImGui::Text("Next tempo: %s", nextTempo ? ("tick " + std::to_string(nextTempo->tick) + " @ " + std::to_string(nextTempo->bpm)).c_str() : "none");
+            ImGui::Text("Tempo events: %zu", map.events().size());
+            ImGui::TextWrapped("Offset fixes constant start mismatch only. If sync gets worse over time, audit imported tempo events and tempo-map seconds.");
+            if (firstNote != chart_.notes().end())
+            {
+                ImGui::Text("First note: tick %d | chart %.3fs | audio %.3fs",
+                            firstNote->tick,
+                            map.tickToSeconds(firstNote->tick),
+                            openchordix::track::editor::audioSecondsFromChartSeconds(
+                                map.tickToSeconds(firstNote->tick), chart_.chartAudioOffsetMs()));
+            }
+            if (ImGui::BeginTable("tempo_events_debug", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+            {
+                ImGui::TableSetupColumn("Tick");
+                ImGui::TableSetupColumn("BPM");
+                ImGui::TableSetupColumn("Seconds");
+                ImGui::TableHeadersRow();
+                const auto &events = map.events();
+                for (std::size_t index = 0; index < std::min<std::size_t>(events.size(), 20); ++index)
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%d", events[index].tick);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%.3f", events[index].bpm);
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%.3f", map.tickToSeconds(events[index].tick));
+                }
+                ImGui::EndTable();
+            }
+            if (selectedNote != nullptr)
+            {
+                ImGui::Separator();
+                ImGui::Text("Selected note");
+                ImGui::Text("Tick: %d", selectedNote->tick);
+                ImGui::Text("Duration ticks: %d", selectedNote->duration);
+                ImGui::Text("Start seconds: chart %.3f | audio %.3f",
+                            map.tickToSeconds(selectedNote->tick),
+                            openchordix::track::editor::audioSecondsFromChartSeconds(
+                                map.tickToSeconds(selectedNote->tick), chart_.chartAudioOffsetMs()));
+                ImGui::Text("End seconds: chart %.3f | audio %.3f",
+                            map.tickToSeconds(selectedNote->tick + selectedNote->duration),
+                            openchordix::track::editor::audioSecondsFromChartSeconds(
+                                map.tickToSeconds(selectedNote->tick + selectedNote->duration),
+                                chart_.chartAudioOffsetMs()));
+                ImGui::Text("String: %d", selectedNote->stringIndex + 1);
+                ImGui::Text("Fret: %d", selectedNote->fret);
+            }
+        }
+        ImGui::End();
+    }
 
     const ImVec2 stripPos(min.x + 14.0f, min.y + transportStripY);
     const ImVec2 stripSize((screen.x - 24.0f) - 28.0f, transportStripHeight);
